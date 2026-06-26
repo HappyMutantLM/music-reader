@@ -16,3 +16,12 @@ View logs
 # sudo docker logs music-server
 
 # MUSIC_DIR = "/volume1/music-pdf-drop"   # change to your local path # '/Users/leilamureebe/Library/CloudStorage/BeeStation-KelvinArchive/Music/Scanned Music/Raw Scans'
+
+
+
+# find the container name first if you don't remember it
+sudo docker ps
+
+# then exec in
+sudo docker exec -it <container_name> /bin/bash
+
