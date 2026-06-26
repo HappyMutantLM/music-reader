@@ -1,7 +1,7 @@
 notes for music_reader
 
 # to access NAS
-ssh leilamureebe@MemoryAlpha
+ssh -p 42 leilamureebe@MemoryAlpha
 
 to list files  
 # ls /volume1/docker/music-server/
