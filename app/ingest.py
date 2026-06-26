@@ -31,7 +31,7 @@ def parse_filename(filename: str) -> dict:
       Excerpt-Beethoven-Symphony5-Bass-Mvt1.pdf
     """
     name = filename.removesuffix(".pdf")
-    parts = name.split("-")
+    parts = [p.strip() for p in name.split("-")]
 
     meta = {
         "filename":        filename,

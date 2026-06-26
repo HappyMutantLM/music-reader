@@ -23,5 +23,5 @@ View logs
 sudo docker ps
 
 # then exec in
-sudo docker exec -it <container_name> /bin/bash
+sudo docker exec -it music-server /bin/bash
 
