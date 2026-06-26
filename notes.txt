@@ -1,0 +1,18 @@
+notes for music_reader
+
+# to access NAS
+ssh leilamureebe@MemoryAlpha
+
+to list files  
+# ls /volume1/docker/music-server/
+
+to check health
+# http://memoryalpha:8000/health
+
+Is the container actually running?
+# sudo docker ps
+
+View logs
+# sudo docker logs music-server
+
+# MUSIC_DIR = "/volume1/music-pdf-drop"   # change to your local path # '/Users/leilamureebe/Library/CloudStorage/BeeStation-KelvinArchive/Music/Scanned Music/Raw Scans'

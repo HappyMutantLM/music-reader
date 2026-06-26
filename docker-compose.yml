@@ -1,0 +1,22 @@
+services:
+  music-server:
+    image: python:3.12-slim
+    container_name: music-server
+    restart: unless-stopped
+    ports:
+      - "8000:8000"          # FastAPI — change left side if 8000 is taken
+    volumes:
+      - /volume1/docker/music-server/app:/app
+      - /volume1/docker/music-server/db:/db
+      - /volume1/docker/music-server/pdf:/pdf
+      - /volume1/docker/music-server/cache:/cache
+      - /volume1/docker/music-server/logs:/logs
+    environment:
+      - PDF_DIR=/pdf
+      - CACHE_DIR=/cache
+      - DB_PATH=/db/music.db
+      - LOG_DIR=/logs
+    working_dir: /app
+    command: >
+      sh -c "pip install -q -r requirements.txt &&
+             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"

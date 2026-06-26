@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pymupdf
+pillow
+aiofiles
+sqlite-utils
+python-multipart
+watchdog
