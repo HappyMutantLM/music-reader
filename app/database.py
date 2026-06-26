@@ -1,98 +1,66 @@
-import sqlite3
 import os
+import sqlite3
 from contextlib import contextmanager
 
-DB_PATH = os.getenv("DB_PATH", "/db/music.db")
+DB_PATH = os.getenv("DB_PATH", "/app/db/music.db")
+MIGRATIONS_DIR = os.path.join(os.path.dirname(DB_PATH), "migrations")
 
-SCHEMA = """
-PRAGMA journal_mode=WAL;
-PRAGMA foreign_keys=ON;
 
-CREATE TABLE IF NOT EXISTS composers (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    last_name   TEXT NOT NULL,
-    first_name  TEXT,
-    birth_year  INTEGER,
-    death_year  INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS scores (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    filename    TEXT NOT NULL UNIQUE,
-    title       TEXT NOT NULL,
-    category    TEXT NOT NULL,
-    instrument  TEXT,
-    composer_id INTEGER REFERENCES composers(id),
-    opus        TEXT,
-    volume      TEXT,
-    movement    TEXT,
-    level       TEXT,
-    page_count  INTEGER,
-    file_path   TEXT NOT NULL,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS works (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    composer_id INTEGER REFERENCES composers(id),
-    title       TEXT NOT NULL,
-    genre       TEXT,
-    key         TEXT,
-    opus        TEXT
-);
-
-CREATE TABLE IF NOT EXISTS work_scores (
-    work_id     INTEGER REFERENCES works(id),
-    score_id    INTEGER REFERENCES scores(id),
-    PRIMARY KEY (work_id, score_id)
-);
-
-CREATE TABLE IF NOT EXISTS setlists (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    name        TEXT NOT NULL,
-    description TEXT,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS setlist_scores (
-    setlist_id  INTEGER REFERENCES setlists(id),
-    score_id    INTEGER REFERENCES scores(id),
-    position    INTEGER,
-    PRIMARY KEY (setlist_id, score_id)
-);
-
-CREATE TABLE IF NOT EXISTS render_cache (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    score_id    INTEGER REFERENCES scores(id),
-    page_num    INTEGER NOT NULL,
-    width       INTEGER,
-    height      INTEGER,
-    dither      TEXT,
-    cache_path  TEXT NOT NULL,
-    rendered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(score_id, page_num, width, height)
-);
-
-CREATE INDEX IF NOT EXISTS idx_scores_instrument ON scores(instrument);
-CREATE INDEX IF NOT EXISTS idx_scores_category   ON scores(category);
-CREATE INDEX IF NOT EXISTS idx_scores_composer   ON scores(composer_id);
-CREATE INDEX IF NOT EXISTS idx_render_cache      ON render_cache(score_id, page_num);
-"""
-
-def init_db():
-    """Initialize database and schema on first run."""
+def migrate():
+    """Apply any .sql migration files in order that haven't been applied yet."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    os.makedirs(MIGRATIONS_DIR, exist_ok=True)
+
     with sqlite3.connect(DB_PATH) as conn:
-        conn.executescript(SCHEMA)
-    print(f"Database initialized at {DB_PATH}")
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+
+        # Ensure schema_version table exists before we query it
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS schema_version (
+                version     INTEGER PRIMARY KEY,
+                applied_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+                description TEXT
+            )
+        """)
+        conn.commit()
+
+        applied = {
+            row[0]
+            for row in conn.execute("SELECT version FROM schema_version").fetchall()
+        }
+
+        migration_files = sorted(
+            f for f in os.listdir(MIGRATIONS_DIR) if f.endswith(".sql")
+        )
+
+        for fname in migration_files:
+            # Extract leading integer version number from filename, e.g. 001_initial_schema.sql → 1
+            try:
+                version = int(fname.split("_")[0])
+            except ValueError:
+                print(f"[db] skipping non-versioned file: {fname}")
+                continue
+
+            if version in applied:
+                print(f"[db] already applied: {fname}")
+                continue
+
+            fpath = os.path.join(MIGRATIONS_DIR, fname)
+            with open(fpath) as f:
+                sql = f.read()
+
+            print(f"[db] applying migration: {fname}")
+            conn.executescript(sql)
+            conn.commit()
+            print(f"[db] applied: {fname}")
 
 
 @contextmanager
 def get_db():
-    """Context manager for database connections."""
+    """Context manager yielding a WAL-mode, dict-row SQLite connection."""
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row   # rows behave like dicts
+    conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA journal_mode=WAL")
     try:
@@ -106,10 +74,8 @@ def get_db():
 
 
 def row_to_dict(row: sqlite3.Row) -> dict:
-    """Convert a sqlite3.Row to a plain dict."""
     return dict(row) if row else None
 
 
 def rows_to_list(rows) -> list:
-    """Convert a list of sqlite3.Rows to plain dicts."""
     return [dict(r) for r in rows]
