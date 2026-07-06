@@ -19,10 +19,7 @@ async def startup():
     watcher_thread = threading.Thread(target=start_watcher, daemon=True)
     watcher_thread.start()
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-from routers import ingest, scores
+from routers import health, ingest, scores
+app.include_router(health.router, tags=["health"])
 app.include_router(ingest.router, prefix="/ingest", tags=["ingest"])
 app.include_router(scores.router, prefix="/scores", tags=["scores"])

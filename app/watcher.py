@@ -42,7 +42,7 @@ class PDFHandler(FileSystemEventHandler):
         log.info(f"{result['status'].upper()}: {filename}")
         if result.get("meta"):
             log.info(f"  category={result['meta']['category']} "
-                     f"composer={result['meta']['composer']} "
+                     f"composer={result['meta']['composer_name']} "
                      f"instrument={result['meta']['instrument']}")
 
 
