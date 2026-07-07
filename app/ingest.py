@@ -5,16 +5,9 @@ import re
 import fitz  # PyMuPDF
 
 from database import get_db
+from naming import CATEGORY_MAP, is_known_composer, is_known_instrument
 
 PDF_DIR = os.getenv("PDF_DIR", "/app/pdf")
-
-CATEGORY_MAP = {
-    "Method":    "Method",
-    "Etude":     "Etude",
-    "Technique": "Technique",
-    "Orch":      "Orch",
-    "Excerpt":   "Excerpt",
-}
 
 
 # ─── filename parsing ─────────────────────────────────────────────────────────
@@ -29,6 +22,10 @@ def parse_filename(filename: str) -> dict:
       Etude-Czerny-Piano-Op299-Book1.pdf
       Orch-Brahms-Symphony1-Bass-Part.pdf
       Excerpt-Beethoven-Symphony5-Bass-Mvt1.pdf
+
+    Assumes the filename is already normalized (e.g. by rename_tool.py) —
+    this is positional parsing, not fuzzy detection. See naming.py for the
+    shared composer/instrument/category vocabulary both scripts draw from.
     """
     name = filename.removesuffix(".pdf")
     parts = [p.strip() for p in name.split("-")]
@@ -42,6 +39,7 @@ def parse_filename(filename: str) -> dict:
         "catalogue_number": None,
         "volume":          None,
         "movement":        None,
+        "warnings":        [],
     }
 
     if parts[0] in CATEGORY_MAP:
@@ -70,6 +68,20 @@ def parse_filename(filename: str) -> dict:
         meta["title"]         = parts[1] if len(parts) > 1 else None
         meta["instrument"]    = parts[2] if len(parts) > 2 else None
         meta["movement"]      = parts[3] if len(parts) > 3 else None
+
+    # Sanity checks — parse_filename() trusts positional structure and
+    # doesn't otherwise validate against the known composer/instrument
+    # vocabulary, so a bad rename (typo, wrong field order) would
+    # otherwise ingest silently. These are warnings, not hard failures,
+    # since the vocabulary in naming.py won't cover every edge case.
+    if meta["composer_name"] and not is_known_composer(meta["composer_name"]):
+        meta["warnings"].append(
+            f"composer_name '{meta['composer_name']}' not in known COMPOSERS list"
+        )
+    if meta["instrument"] and not is_known_instrument(meta["instrument"]):
+        meta["warnings"].append(
+            f"instrument '{meta['instrument']}' not in known INSTRUMENTS list"
+        )
 
     return meta
 
@@ -168,6 +180,10 @@ def ingest_file(filename: str) -> dict:
 
         meta = parse_filename(filename)
         page_count = get_page_count(file_path)
+
+        if meta["warnings"]:
+            for w in meta["warnings"]:
+                print(f"[ingest] WARNING ({filename}): {w}")
 
         # For standalone composer name on Method/Etude (no repertoire row)
         composer_id = None

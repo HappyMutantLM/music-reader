@@ -1,26 +1,58 @@
 import os
 import re
-import sys
-
-# ── Make app/naming.py importable (repo root -> app/) ───────────────────────
-# rename_tool.py lives at the repo root; naming.py lives in app/, imported
-# flat (matching the convention app/ingest.py already uses for its own
-# sibling imports, e.g. `from database import get_db`).
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "app"))
-
-from naming import (  # noqa: E402
-    CATEGORY_PREFIXES,
-    OPUS_RE, VOLUME_RE, MOVEMENT_RE, BWV_RE, KV_RE,
-    clean, to_camel, detect_category, detect_composer, detect_instrument,
-    extract_pattern,
-)
 
 # ── Configuration ────────────────────────────────────────────
 MUSIC_DIR = '/Users/leilamureebe/Library/CloudStorage/BeeStation-KelvinArchive/Music/Scanned Music/Raw Scans'
 DRY_RUN   = False                         # set False to actually rename
 # ─────────────────────────────────────────────────────────────
 
+# Known composers — expand as needed
+COMPOSERS = {
+    "bach", "bachjs", "bachcpe",
+    "beethoven", "brahms", "chopin", "debussy",
+    "dvorak", "handel", "haydn", "mahler", "mozart", "prokofiev",
+    "ravel", "schubert", "schumann", "shostakovich", "strauss",
+    "tchaikovsky", "vivaldi", "wagner",
+    "scriabin", "skrjabin", "satie", "rossini", "janacek",
+    "gounod", "gershwin", "saint-saens", "saintsaens",
+    # Bass repertoire
+    "bottesini", "dragonetti", "koussevitzky", "rabbath", "vanhal",
+    # Method/etude authors
+    "simandl", "czerny", "hanon", "kreutzer", "popper", "kummer",
+    "vance", "beringer", "manookian", "bastien",
+    # Popular
+    "billjoel", "billyjoel", "loureed", "queen", "joplin", "bowie",
+    "comeau",
+}
+
+# Known instruments
+INSTRUMENTS = {
+    "bass", "piano", "violin", "viola", "cello",
+    "flute", "oboe", "clarinet", "trumpet", "horn", "organ",
+    "satb", "lute",
+}
+
+# Prefix detection
+CATEGORY_PREFIXES = {
+    "method":    ["method", "meth"],
+    "etude":     ["etude", "étude", "study", "studies"],
+    "technique": ["technique", "tech", "exercise", "exercises",
+                  "scale", "scales", "arpeggios", "cadences", "fundamentals"],
+    "orch":      ["orch", "orchestra", "orchestral", "symphony", "symphonie"],
+    "excerpt":   ["excerpt", "excerpts", "audition"],
+}
+
+# Tokens to preserve exact casing
+PRESERVE_CASE = {
+    "js": "JS", "cpe": "CPE", "wa": "WA",
+    "bwv": "BWV", "kv": "KV", "op": "Op",
+    "vol": "Vol", "book": "Book",
+    "i": "I", "ii": "II", "iii": "III", "iv": "IV",
+    "v": "V", "vi": "VI", "vii": "VII", "viii": "VIII",
+}
+
 # Files to skip — already correctly named
+
 SKIP_FILES = {
     "Beethoven-Pathetique-Piano-Op13.pdf",
     "Technique-Brahms-Piano-Op51.pdf",
@@ -55,6 +87,65 @@ SKIP_FILES = {
     "SaintSaens-LeCygne-Cello.pdf",
     "BachJS-Inventions15-Piano.pdf"
 }
+
+# Opus pattern
+OPUS_RE     = re.compile(r"op\.?\s*(\d+)", re.IGNORECASE)
+VOLUME_RE   = re.compile(r"(book|vol|volume|part|grade)\s*\.?(\d+)", re.IGNORECASE)
+MOVEMENT_RE = re.compile(r"(mvt|mov|movement)\s*\.?(\d+)", re.IGNORECASE)
+BWV_RE      = re.compile(r"bwv\s*(\d+)", re.IGNORECASE)
+KV_RE       = re.compile(r"k\.?v?\.?\s*(\d+)", re.IGNORECASE)
+
+
+def clean(s: str) -> str:
+    s = re.sub(r"[^\w\s-]", "", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def to_camel(s: str) -> str:
+    """Convert string to CamelCase, preserving known tokens."""
+    words = s.split()
+    result = []
+    for w in words:
+        lower = w.lower()
+        if lower in PRESERVE_CASE:
+            result.append(PRESERVE_CASE[lower])
+        else:
+            result.append(w.capitalize())
+    return "".join(result)
+
+
+def detect_category(name_lower: str) -> str:
+    for category, keywords in CATEGORY_PREFIXES.items():
+        for kw in keywords:
+            if kw in name_lower:
+                return category
+    return "repertoire"
+
+
+def detect_composer(parts: list) -> tuple:
+    """Find composer in parts, return (composer, remaining_parts)."""
+    for i, part in enumerate(parts):
+        if part.lower() in COMPOSERS:
+            return to_camel(part), parts[:i] + parts[i+1:]
+    return None, parts
+
+
+def detect_instrument(parts: list) -> tuple:
+    """Find instrument in parts, return (instrument, remaining_parts)."""
+    for i, part in enumerate(parts):
+        if part.lower() in INSTRUMENTS:
+            return to_camel(part), parts[:i] + parts[i+1:]
+    return None, parts
+
+
+def extract_pattern(text: str, pattern: re.Pattern, fmt: str) -> tuple:
+    m = pattern.search(text)
+    if m:
+        value = fmt.format(*m.groups())
+        text = text[:m.start()] + text[m.end():]
+        return value, text.strip()
+    return None, text
 
 
 def propose_rename(filename: str) -> str | None:
