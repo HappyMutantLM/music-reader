@@ -3,7 +3,9 @@ import sqlite3
 from contextlib import contextmanager
 
 DB_PATH = os.getenv("DB_PATH", "/app/db/music.db")
-MIGRATIONS_DIR = os.path.join(os.path.dirname(DB_PATH), "migrations")
+MIGRATIONS_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "migrations"
+    )
 
 
 def migrate():
