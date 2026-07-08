@@ -9,6 +9,12 @@ from naming import CATEGORY_MAP, is_known_composer, is_known_instrument
 
 PDF_DIR = os.getenv("PDF_DIR", "/app/pdf")
 
+# Structured-token patterns for classifying filename parts by content
+# rather than position (see parse_filename() docstring below).
+CATALOGUE_RE      = re.compile(r"^(Op|BWV|KV)\d+", re.IGNORECASE)
+VOLUME_TOKEN_RE   = re.compile(r"^(book|vol|volume|part|grade)\d+", re.IGNORECASE)
+MOVEMENT_TOKEN_RE = re.compile(r"^(mvt|mov|movement)\d+", re.IGNORECASE)
+
 
 # ─── filename parsing ─────────────────────────────────────────────────────────
 
@@ -24,11 +30,28 @@ def parse_filename(filename: str) -> dict:
       Excerpt-Beethoven-Symphony5-Bass-Mvt1.pdf
 
     Assumes the filename is already normalized (e.g. by rename_tool.py) —
-    this is positional parsing, not fuzzy detection. See naming.py for the
-    shared composer/instrument/category vocabulary both scripts draw from.
+    this is content-based parsing, not fuzzy detection. See naming.py for
+    the shared composer/instrument/category vocabulary both scripts draw
+    from.
+
+    rename_tool.py builds these filenames by joining only the segments
+    that are actually present for a given file — catalogue number, volume,
+    movement, and instrument are all optional, so any given field's
+    position shifts depending on what's missing. Composer is the one
+    field rename_tool always places immediately after the category prefix
+    (or first, for repertoire's no-prefix case), so that stays positional;
+    everything else is classified by content instead of index:
+      - catalogue number / volume / movement are recognized by regex
+        (Op123, BWV1067, KV421, Vol1, Book2, Part1, Mvt3, ...)
+      - instrument is recognized against naming.py's known INSTRUMENTS
+        vocabulary — the same vocabulary rename_tool draws from, so an
+        instrument token here is always a known one
+      - whatever's left over becomes the title (non-numeric markers like
+        a bare "Part"/"Score" with no digit fall in here too, since
+        there's no dedicated schema column for that distinction)
     """
     name = filename.removesuffix(".pdf")
-    parts = [p.strip() for p in name.split("-")]
+    parts = [p.strip() for p in name.split("-") if p.strip()]
 
     meta = {
         "filename":        filename,
@@ -42,38 +65,48 @@ def parse_filename(filename: str) -> dict:
         "warnings":        [],
     }
 
-    if parts[0] in CATEGORY_MAP:
+    if parts and parts[0] in CATEGORY_MAP:
         meta["category"] = CATEGORY_MAP[parts[0]]
         parts = parts[1:]
 
-    if meta["category"] == "repertoire":
-        # Bach-CelloSuite1-Bass-BassClef
-        meta["composer_name"] = parts[0] if len(parts) > 0 else None
-        meta["title"]         = parts[1] if len(parts) > 1 else None
-        meta["instrument"]    = parts[2] if len(parts) > 2 else None
+    # Composer, when present, is always the token right after the category
+    # prefix (or first, for repertoire) — the one field rename_tool never
+    # shifts. But composer is itself optional (e.g. a generic instrument
+    # method/technique book with no attributed composer), so don't claim
+    # this slot as composer if it's actually the instrument token instead.
+    if parts and not is_known_instrument(parts[0]):
+        meta["composer_name"] = parts[0]
+        parts = parts[1:]
 
-    elif meta["category"] in ("Method", "Etude", "Technique"):
-        # Simandl-Bass-Book1  /  Czerny-Piano-Op299-Book1
-        meta["composer_name"] = parts[0] if len(parts) > 0 else None
-        meta["instrument"]    = parts[1] if len(parts) > 1 else None
-        for part in parts[2:]:
-            if re.match(r"^Op\d+", part, re.IGNORECASE):
-                meta["catalogue_number"] = part
-            elif re.match(r"^(Book|Vol|Grade)\d+", part, re.IGNORECASE):
-                meta["volume"] = part
+    # Peel off the regex-recognizable structured tokens, in any order.
+    leftover = []
+    for part in parts:
+        if CATALOGUE_RE.match(part):
+            meta["catalogue_number"] = part
+        elif VOLUME_TOKEN_RE.match(part):
+            meta["volume"] = part
+        elif MOVEMENT_TOKEN_RE.match(part):
+            meta["movement"] = part
+        else:
+            leftover.append(part)
 
-    elif meta["category"] in ("Orch", "Excerpt"):
-        # Brahms-Symphony1-Bass-Part  /  Beethoven-Symphony5-Bass-Mvt1
-        meta["composer_name"] = parts[0] if len(parts) > 0 else None
-        meta["title"]         = parts[1] if len(parts) > 1 else None
-        meta["instrument"]    = parts[2] if len(parts) > 2 else None
-        meta["movement"]      = parts[3] if len(parts) > 3 else None
+    # Of what's left, the instrument is whichever token matches the known
+    # vocabulary; anything else is title text.
+    title_parts = []
+    for part in leftover:
+        if meta["instrument"] is None and is_known_instrument(part):
+            meta["instrument"] = part
+        else:
+            title_parts.append(part)
 
-    # Sanity checks — parse_filename() trusts positional structure and
-    # doesn't otherwise validate against the known composer/instrument
-    # vocabulary, so a bad rename (typo, wrong field order) would
-    # otherwise ingest silently. These are warnings, not hard failures,
-    # since the vocabulary in naming.py won't cover every edge case.
+    if title_parts:
+        meta["title"] = "-".join(title_parts)
+
+    # Sanity checks — composer is still positional and instrument tokens
+    # are matched against a known vocabulary, but a bad rename (typo,
+    # missing field) can still slip through. These are warnings, not hard
+    # failures, since the vocabulary in naming.py won't cover every edge
+    # case.
     if meta["composer_name"] and not is_known_composer(meta["composer_name"]):
         meta["warnings"].append(
             f"composer_name '{meta['composer_name']}' not in known COMPOSERS list"
@@ -127,15 +160,27 @@ def get_or_create_repertoire(conn, meta: dict) -> int | None:
         return None
 
     title = meta.get("title") or meta["filename"].removesuffix(".pdf")
+    catalogue_number = meta.get("catalogue_number")
 
     row = conn.execute(
-        "SELECT id FROM repertoire WHERE title = ?", (title,)
+        "SELECT id, catalogue_number FROM repertoire WHERE title = ?", (title,)
     ).fetchone()
     if row:
-        return row["id"]
+        rep_id = row["id"]
+        # Backfill catalogue_number if an earlier score for this same title
+        # was ingested before parse_filename() could recognize one (or from
+        # an edition that simply omitted it) — don't overwrite one that's
+        # already set.
+        if catalogue_number and not row["catalogue_number"]:
+            conn.execute(
+                "UPDATE repertoire SET catalogue_number = ? WHERE id = ?",
+                (catalogue_number, rep_id),
+            )
+        return rep_id
 
     cursor = conn.execute(
-        "INSERT INTO repertoire (title) VALUES (?)", (title,)
+        "INSERT INTO repertoire (title, catalogue_number) VALUES (?, ?)",
+        (title, catalogue_number),
     )
     rep_id = cursor.lastrowid
 
