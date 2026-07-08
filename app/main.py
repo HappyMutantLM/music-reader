@@ -21,7 +21,9 @@ ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["GET", "POST"],
+    # PUT/DELETE added for the setlist editor (reorder + remove item);
+    # everything else so far has only needed GET/POST.
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
  
@@ -33,9 +35,10 @@ async def startup():
     watcher_thread.start()
  
  
-from routers import scores, pages  # noqa: E402
+from routers import scores, pages, setlists  # noqa: E402
 
 app.include_router(health.router, tags=["health"])
 app.include_router(ingest.router, prefix="/ingest", tags=["ingest"])
 app.include_router(scores.router, prefix="/scores", tags=["scores"])
 app.include_router(pages.router, prefix="/page", tags=["pages"])
+app.include_router(setlists.router, prefix="/setlists", tags=["setlists"])

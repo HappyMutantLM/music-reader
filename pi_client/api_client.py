@@ -34,6 +34,19 @@ def list_scores(**filters) -> list:
     return r.json()
 
 
+def get_setlist(setlist_id: int) -> dict:
+    """A setlist with its ordered items (score_id, page_start/page_end,
+    notes) joined to score metadata — everything reader.py needs to walk
+    through a performance without a follow-up request per item."""
+    try:
+        r = requests.get(f"{SERVER_URL}/setlists/{setlist_id}", timeout=REQUEST_TIMEOUT)
+    except requests.RequestException as e:
+        raise ApiError(f"Couldn't reach {SERVER_URL}: {e}") from e
+    if r.status_code != 200:
+        raise ApiError(f"GET /setlists/{setlist_id} -> {r.status_code}: {r.text}")
+    return r.json()
+
+
 def get_page_image(score_id: int, page_number: int) -> bytes:
     """Fetch a rendered page as PNG bytes. Raises ApiError on any
     non-200 (out-of-range page, missing PDF, backend down, etc.)."""
