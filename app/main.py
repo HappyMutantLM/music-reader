@@ -33,8 +33,9 @@ async def startup():
     watcher_thread.start()
  
  
-from routers import scores  # noqa: E402
- 
+from routers import scores, pages  # noqa: E402
+
 app.include_router(health.router, tags=["health"])
 app.include_router(ingest.router, prefix="/ingest", tags=["ingest"])
 app.include_router(scores.router, prefix="/scores", tags=["scores"])
+app.include_router(pages.router, prefix="/page", tags=["pages"])

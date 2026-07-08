@@ -13,9 +13,9 @@ services:
       - /volume1/docker/music-server/logs:/logs
     environment:
       - PDF_DIR=/pdf
-      # CACHE_DIR: not read by any code yet — reserved for a planned
-      # page-image caching/thumbnail feature (see requirements.txt note
-      # on pillow/aiofiles). Remove alongside those if that plan changes.
+      # CACHE_DIR: rendered page PNGs (routers/pages.py), keyed by
+      # {score_id}/{page_number}.png — avoids re-rendering with PyMuPDF
+      # on every pedal tap.
       - CACHE_DIR=/cache
       - DB_PATH=/db/music.db
       - LOG_DIR=/logs

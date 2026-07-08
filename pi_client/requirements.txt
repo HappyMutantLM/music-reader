@@ -1,0 +1,14 @@
+requests
+Pillow
+evdev
+# IT8951 driver isn't on PyPI — install separately, matching the setup
+# already verified working on the Pi 4B (Raspberry Pi OS 13 / Trixie):
+#
+#   python3 -m venv --system-site-packages .venv
+#   source .venv/bin/activate
+#   pip install -r requirements.txt
+#   pip install git+https://github.com/GregDMeyer/IT8951.git
+#
+# --system-site-packages is required so this venv can see the
+# apt-installed RPi.GPIO/rpi-lgpio shim and SPI libraries — those aren't
+# pip-installable on Trixie.
