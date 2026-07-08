@@ -197,8 +197,18 @@ def get_or_create_repertoire(conn, meta: dict) -> int | None:
 
 # ─── ingest ───────────────────────────────────────────────────────────────────
 
-def ingest_file(filename: str) -> dict:
-    file_path = os.path.join(PDF_DIR, filename)
+def ingest_file(filename: str, file_path: str | None = None) -> dict:
+    """
+    `filename` is the identity used for parsing/dedup — the bare, canonical
+    name rename_tool.py produces (score.filename is unique on this).
+    `file_path` is where to actually find the file on disk; defaults to
+    PDF_DIR/filename for flat-layout callers (e.g. the POST
+    /ingest/file/{filename} endpoint, which only ever targets top-level
+    files). ingest_all() and the watcher now scan PDF_DIR recursively, so
+    they pass the real (possibly nested) path explicitly.
+    """
+    if file_path is None:
+        file_path = os.path.join(PDF_DIR, filename)
 
     if not os.path.exists(file_path):
         return {"status": "error", "message": f"File not found: {filename}"}
@@ -270,13 +280,21 @@ def ingest_file(filename: str) -> dict:
 
 
 def ingest_all() -> list:
+    """
+    Recursively scan PDF_DIR (matching rename_tool.py's os.walk over the
+    source folder) rather than only the top level — otherwise PDFs placed
+    in subfolders would be silently invisible to ingestion even though
+    the watcher and rename tool both see them.
+    """
     if not os.path.exists(PDF_DIR):
         return [{"status": "error", "message": f"PDF_DIR not found: {PDF_DIR}"}]
 
     results = []
-    for filename in sorted(os.listdir(PDF_DIR)):
-        if filename.lower().endswith(".pdf"):
-            result = ingest_file(filename)
-            results.append(result)
-            print(f"[ingest] {result['status']}: {filename}")
+    for root, _dirs, filenames in os.walk(PDF_DIR):
+        for filename in sorted(filenames):
+            if filename.lower().endswith(".pdf"):
+                file_path = os.path.join(root, filename)
+                result = ingest_file(filename, file_path=file_path)
+                results.append(result)
+                print(f"[ingest] {result['status']}: {filename}")
     return results

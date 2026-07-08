@@ -38,7 +38,11 @@ class PDFHandler(FileSystemEventHandler):
         # Wait for file to finish writing before ingesting
         self._wait_for_stable(full_path)
 
-        result = ingest_file(filename)
+        # Pass the real (possibly nested) path explicitly — PDF_DIR is
+        # now watched recursively, so full_path may live in a subfolder
+        # while `filename` (used for parsing/dedup) stays just the
+        # basename.
+        result = ingest_file(filename, file_path=full_path)
         log.info(f"{result['status'].upper()}: {filename}")
         if result.get("meta"):
             log.info(f"  category={result['meta']['category']} "
@@ -66,10 +70,10 @@ class PDFHandler(FileSystemEventHandler):
 
 
 def start_watcher():
-    log.info(f"Watching {PDF_DIR} for new PDFs...")
+    log.info(f"Watching {PDF_DIR} for new PDFs (recursively)...")
     handler = PDFHandler()
     observer = Observer()
-    observer.schedule(handler, PDF_DIR, recursive=False)
+    observer.schedule(handler, PDF_DIR, recursive=True)
     observer.start()
     try:
         while True:

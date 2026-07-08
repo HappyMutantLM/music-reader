@@ -13,10 +13,13 @@ services:
       - /volume1/docker/music-server/logs:/logs
     environment:
       - PDF_DIR=/pdf
+      # CACHE_DIR: not read by any code yet — reserved for a planned
+      # page-image caching/thumbnail feature (see requirements.txt note
+      # on pillow/aiofiles). Remove alongside those if that plan changes.
       - CACHE_DIR=/cache
       - DB_PATH=/db/music.db
       - LOG_DIR=/logs
-      - ALLOWED_ORIGINS=http://localhost:5173,http://<nas-lan-ip>:8000
+      - ALLOWED_ORIGINS=http://localhost:5173,http://memoryalpha:8000
     working_dir: /app
     command: >
       sh -c "pip install -q -r requirements.txt &&

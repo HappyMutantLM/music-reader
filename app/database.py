@@ -7,15 +7,27 @@ MIGRATIONS_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "migrations"
     )
 
+# How long a connection waits on a locked db before raising "database is
+# locked", instead of failing immediately. Matters once the watcher thread
+# and API request handlers are both opening connections against the same
+# WAL-mode file concurrently.
+BUSY_TIMEOUT_MS = 5000
+
 
 def migrate():
     """Apply any .sql migration files in order that haven't been applied yet."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     os.makedirs(MIGRATIONS_DIR, exist_ok=True)
 
-    with sqlite3.connect(DB_PATH) as conn:
+    # Plain connect + try/finally instead of `with sqlite3.connect(...) as
+    # conn` — sqlite3's context manager only commits/rolls back the
+    # transaction on exit, it does NOT close the connection, which left
+    # this one open (and leaked) for the life of the process.
+    conn = sqlite3.connect(DB_PATH)
+    try:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
+        conn.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
 
         # Ensure schema_version table exists before we query it
         conn.execute("""
@@ -56,6 +68,8 @@ def migrate():
             conn.executescript(sql)
             conn.commit()
             print(f"[db] applied: {fname}")
+    finally:
+        conn.close()
 
 
 @contextmanager
@@ -65,6 +79,7 @@ def get_db():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
     try:
         yield conn
         conn.commit()

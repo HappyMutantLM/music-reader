@@ -1,8 +1,15 @@
 fastapi
 uvicorn[standard]
 pymupdf
+# pillow, aiofiles: unused for now — reserved for a planned page-image
+# caching/thumbnail feature for the e-ink display (pairs with CACHE_DIR
+# in docker-compose.yml, also currently unused). Not dead code — remove
+# together if that feature gets dropped.
 pillow
 aiofiles
+# sqlite-utils: currently unused — database.py talks to sqlite3
+# directly. No known future-use story like pillow/aiofiles above; flag
+# for removal if nothing ends up needing it.
 sqlite-utils
 python-multipart
 watchdog
