@@ -21,3 +21,7 @@ services:
     command: >
       sh -c "pip install -q -r requirements.txt &&
              uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+
+# command: >. ##### replace above command with this once in prod
+#      sh -c "pip install -q -r requirements.txt &&
+#             uvicorn main:app --host 0.0.0.0 --port 8000"
