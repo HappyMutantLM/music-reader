@@ -7,7 +7,7 @@ import fitz  # PyMuPDF
 from database import get_db
 from naming import CATEGORY_MAP, is_known_composer, is_known_instrument
 
-PDF_DIR = os.getenv("PDF_DIR", "/app/pdf")
+PDF_DIR = os.getenv("PDF_DIR", "/pdf")
 
 # Structured-token patterns for classifying filename parts by content
 # rather than position (see parse_filename() docstring below).
