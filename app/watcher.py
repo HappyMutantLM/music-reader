@@ -3,7 +3,7 @@ import time
 import logging
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from app.ingest_core import ingest_file
+from ingest_core import ingest_file
 
 PDF_DIR = os.getenv("PDF_DIR", "/pdf")
 LOG_DIR = os.getenv("LOG_DIR", "/logs")

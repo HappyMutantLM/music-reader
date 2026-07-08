@@ -199,7 +199,7 @@ def ingest_file(filename: str) -> dict:
         if meta.get("movement"):
             display_title = f"{display_title} {meta['movement']}"
 
-        conn.execute("""
+        cursor = conn.execute("""
             INSERT INTO score
                 (repertoire_id, filename, category, instrument, page_count, file_hash)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -211,6 +211,15 @@ def ingest_file(filename: str) -> dict:
             page_count,
             file_hash,
         ))
+
+        # Method/Etude/Technique scores have no repertoire row to hang a
+        # repertoire_composer link off of — link the composer directly via
+        # score_composer instead, so it's not silently dropped.
+        if repertoire_id is None and composer_id is not None:
+            conn.execute("""
+                INSERT OR IGNORE INTO score_composer (score_id, composer_id, role)
+                VALUES (?, ?, 'composer')
+            """, (cursor.lastrowid, composer_id))
 
     return {"status": "ok", "filename": filename, "meta": meta}
 
