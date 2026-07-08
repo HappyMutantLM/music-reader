@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from routers.ingest import ingest_all, ingest_file
+from ingest_core import ingest_all, ingest_file
 
 router = APIRouter()
 
