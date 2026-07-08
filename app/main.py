@@ -4,6 +4,7 @@ import threading
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
  
+from app.routers import health, ingest
 from database import migrate
 from watcher import start_watcher
  
@@ -32,7 +33,7 @@ async def startup():
     watcher_thread.start()
  
  
-from routers import health, ingest, scores  # noqa: E402
+from app.routers import scores  # noqa: E402
  
 app.include_router(health.router, tags=["health"])
 app.include_router(ingest.router, prefix="/ingest", tags=["ingest"])
