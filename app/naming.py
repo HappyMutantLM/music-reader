@@ -88,6 +88,12 @@ def to_camel(s: str) -> str:
         lower = w.lower()
         if lower in PRESERVE_CASE:
             result.append(PRESERVE_CASE[lower])
+        elif not w.isupper() and not w.islower() and w[:1].isupper():
+            # Already internally mixed-case (e.g. "ArtOfFingerDexterity" —
+            # a glued compound title with no separators between words).
+            # w.capitalize() would lowercase everything after the first
+            # letter and destroy that structure, so leave it as-is instead.
+            result.append(w)
         else:
             result.append(w.capitalize())
     return "".join(result)
@@ -99,6 +105,20 @@ def detect_category(name_lower: str) -> str:
             if kw in name_lower:
                 return category
     return "repertoire"
+
+
+def find_category_keyword(name_lower: str, category: str) -> str | None:
+    """Return the specific keyword from CATEGORY_PREFIXES[category] that
+    appears in name_lower, or None. Used to strip only the marker word that
+    actually triggered category detection — not every synonym in that
+    category's list. Some synonyms (e.g. "scales", "fundamentals" under
+    "technique") double as legitimate title content in specific files, so
+    blanket-stripping the whole keyword list would delete real title words
+    rather than just the category marker."""
+    for kw in CATEGORY_PREFIXES.get(category, []):
+        if kw in name_lower:
+            return kw
+    return None
 
 
 def detect_composer(parts: list) -> tuple:

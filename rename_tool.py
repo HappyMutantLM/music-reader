@@ -11,13 +11,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "app
 from naming import (  # noqa: E402
     CATEGORY_PREFIXES,
     OPUS_RE, VOLUME_RE, MOVEMENT_RE, BWV_RE, KV_RE,
-    clean, to_camel, detect_category, detect_composer, detect_instrument,
-    extract_pattern,
+    clean, to_camel, detect_category, find_category_keyword,
+    detect_composer, detect_instrument, extract_pattern,
 )
 
 # ── Configuration ────────────────────────────────────────────
 MUSIC_DIR = '/Users/leilamureebe/Library/CloudStorage/BeeStation-KelvinArchive/Music/Scanned Music/Raw Scans'
-DRY_RUN   = False                         # set False to actually rename
+DRY_RUN   = True                          # set False to actually rename
 # ─────────────────────────────────────────────────────────────
 
 # Files to skip — already correctly named
@@ -74,10 +74,15 @@ def propose_rename(filename: str) -> str | None:
     # Detect category
     category = detect_category(name_lower)
 
-    # Strip category keywords
-    for keywords in CATEGORY_PREFIXES.values():
-        for kw in keywords:
-            name = re.sub(re.escape(kw), "", name, flags=re.IGNORECASE)
+    # Strip only the specific keyword that triggered category detection —
+    # not the whole category's synonym list, and not other categories'
+    # lists either. Some synonyms (e.g. "scales", "fundamentals" under
+    # "technique") double as legitimate title content in specific files;
+    # stripping every synonym unconditionally would delete real title
+    # words, not just the category marker.
+    matched_kw = find_category_keyword(name_lower, category)
+    if matched_kw:
+        name = re.sub(re.escape(matched_kw), "", name, count=1, flags=re.IGNORECASE)
     name = clean(name)
 
     # Extract structured tokens
@@ -102,7 +107,12 @@ def propose_rename(filename: str) -> str | None:
         segments = [composer, title, instrument,
                     bwv or kv or opus, volume, movement]
     elif category in ("method", "etude", "technique"):
-        segments = [category.capitalize(), composer, instrument,
+        # Include title so leftover descriptive words (e.g. "Scales",
+        # "Fundamentals" after the category marker is stripped) aren't
+        # silently dropped — previously this branch had no title slot at
+        # all, so any such words computed by detect_composer/detect_instrument
+        # leftover logic just vanished from the final filename.
+        segments = [category.capitalize(), composer, instrument, title,
                     opus or bwv or kv, volume]
     elif category in ("orch", "excerpt"):
         segments = [category.capitalize(), composer, title,
