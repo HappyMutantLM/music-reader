@@ -16,6 +16,7 @@ services:
       - CACHE_DIR=/cache
       - DB_PATH=/db/music.db
       - LOG_DIR=/logs
+      - ALLOWED_ORIGINS=http://localhost:5173,http://<nas-lan-ip>:8000
     working_dir: /app
     command: >
       sh -c "pip install -q -r requirements.txt &&

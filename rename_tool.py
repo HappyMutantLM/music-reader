@@ -53,7 +53,6 @@ SKIP_FILES = {
     "BachJS-Inventions15-Piano.pdf",
     "BillyJoel-PianoMan-Piano.pdf",
     "SaintSaens-LeCygne-Cello.pdf",
-    "BachJS-Inventions15-Piano.pdf"
 }
 
 
