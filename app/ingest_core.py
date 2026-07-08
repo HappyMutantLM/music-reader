@@ -55,7 +55,7 @@ def parse_filename(filename: str) -> dict:
 
     meta = {
         "filename":        filename,
-        "category":        "repertoire",
+        "category":        "Repertoire",
         "composer_name":   None,
         "title":           None,
         "instrument":      None,
@@ -140,15 +140,18 @@ def get_page_count(file_path: str) -> int:
 
 
 def get_or_create_composer(conn, name: str) -> int:
+    # INSERT OR IGNORE + re-select instead of select-then-insert: the watcher
+    # thread and API request handlers can both hit this for the same new
+    # composer name concurrently, and a plain select-then-insert has a
+    # TOCTOU gap that produces duplicate composer rows. The UNIQUE index on
+    # composer.name (migration 003) is what actually makes this safe — the
+    # INSERT is a no-op if another connection won the race, and the
+    # following SELECT then sees whichever row is authoritative.
+    conn.execute("INSERT OR IGNORE INTO composer (name) VALUES (?)", (name,))
     row = conn.execute(
         "SELECT id FROM composer WHERE name = ?", (name,)
     ).fetchone()
-    if row:
-        return row["id"]
-    cursor = conn.execute(
-        "INSERT INTO composer (name) VALUES (?)", (name,)
-    )
-    return cursor.lastrowid
+    return row["id"]
 
 
 def get_or_create_repertoire(conn, meta: dict) -> int | None:
@@ -162,29 +165,31 @@ def get_or_create_repertoire(conn, meta: dict) -> int | None:
     title = meta.get("title") or meta["filename"].removesuffix(".pdf")
     catalogue_number = meta.get("catalogue_number")
 
+    # Same INSERT OR IGNORE + re-select pattern as get_or_create_composer()
+    # above, backed by the UNIQUE index on repertoire.title (migration 003).
+    conn.execute(
+        "INSERT OR IGNORE INTO repertoire (title, catalogue_number) VALUES (?, ?)",
+        (title, catalogue_number),
+    )
     row = conn.execute(
         "SELECT id, catalogue_number FROM repertoire WHERE title = ?", (title,)
     ).fetchone()
-    if row:
-        rep_id = row["id"]
-        # Backfill catalogue_number if an earlier score for this same title
-        # was ingested before parse_filename() could recognize one (or from
-        # an edition that simply omitted it) — don't overwrite one that's
-        # already set.
-        if catalogue_number and not row["catalogue_number"]:
-            conn.execute(
-                "UPDATE repertoire SET catalogue_number = ? WHERE id = ?",
-                (catalogue_number, rep_id),
-            )
-        return rep_id
+    rep_id = row["id"]
 
-    cursor = conn.execute(
-        "INSERT INTO repertoire (title, catalogue_number) VALUES (?, ?)",
-        (title, catalogue_number),
-    )
-    rep_id = cursor.lastrowid
+    # Backfill catalogue_number if an earlier score for this same title
+    # was ingested before parse_filename() could recognize one (or from
+    # an edition that simply omitted it) — don't overwrite one that's
+    # already set.
+    if catalogue_number and not row["catalogue_number"]:
+        conn.execute(
+            "UPDATE repertoire SET catalogue_number = ? WHERE id = ?",
+            (catalogue_number, rep_id),
+        )
 
-    # Link composer → repertoire via join table
+    # Link composer → repertoire via join table. Runs unconditionally now
+    # (not just on first-insert) so a second score for an existing
+    # repertoire row still gets its composer linked — INSERT OR IGNORE
+    # makes this a safe no-op if the link already exists.
     if meta.get("composer_name"):
         composer_id = get_or_create_composer(conn, meta["composer_name"])
         conn.execute("""

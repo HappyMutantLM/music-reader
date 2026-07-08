@@ -100,10 +100,13 @@ def to_camel(s: str) -> str:
 
 
 def detect_category(name_lower: str) -> str:
+    # Whole-word match, not substring — a bare `kw in name_lower` check
+    # would false-positive on short keywords like "orch"/"tech"/"study"
+    # appearing inside unrelated words (e.g. "Orchid" contains "orch").
+    words = set(name_lower.split())
     for category, keywords in CATEGORY_PREFIXES.items():
-        for kw in keywords:
-            if kw in name_lower:
-                return category
+        if words & set(keywords):
+            return category
     return "repertoire"
 
 
@@ -114,9 +117,12 @@ def find_category_keyword(name_lower: str, category: str) -> str | None:
     category's list. Some synonyms (e.g. "scales", "fundamentals" under
     "technique") double as legitimate title content in specific files, so
     blanket-stripping the whole keyword list would delete real title words
-    rather than just the category marker."""
+    rather than just the category marker.
+
+    Whole-word match, same reasoning as detect_category() above."""
+    words = name_lower.split()
     for kw in CATEGORY_PREFIXES.get(category, []):
-        if kw in name_lower:
+        if kw in words:
             return kw
     return None
 

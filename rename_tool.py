@@ -8,12 +8,7 @@ import sys
 # sibling imports, e.g. `from database import get_db`).
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "app"))
 
-from naming import (  # noqa: E402
-    CATEGORY_PREFIXES,
-    OPUS_RE, VOLUME_RE, MOVEMENT_RE, BWV_RE, KV_RE,
-    clean, to_camel, detect_category, find_category_keyword,
-    detect_composer, detect_instrument, extract_pattern,
-)
+from renaming import propose_filename  # noqa: E402
 
 # ── Configuration ────────────────────────────────────────────
 MUSIC_DIR = '/Users/leilamureebe/Library/CloudStorage/BeeStation-KelvinArchive/Music/Scanned Music/Raw Scans'
@@ -64,68 +59,9 @@ def propose_rename(filename: str) -> str | None:
     if filename in SKIP_FILES:
         return filename  # signals "already correct"
 
-    name = filename[:-4]
-
-    # Normalize separators
-    name = re.sub(r"[-_]+", " ", name)
-    name = clean(name)
-    name_lower = name.lower()
-
-    # Detect category
-    category = detect_category(name_lower)
-
-    # Strip only the specific keyword that triggered category detection —
-    # not the whole category's synonym list, and not other categories'
-    # lists either. Some synonyms (e.g. "scales", "fundamentals" under
-    # "technique") double as legitimate title content in specific files;
-    # stripping every synonym unconditionally would delete real title
-    # words, not just the category marker.
-    matched_kw = find_category_keyword(name_lower, category)
-    if matched_kw:
-        name = re.sub(re.escape(matched_kw), "", name, count=1, flags=re.IGNORECASE)
-    name = clean(name)
-
-    # Extract structured tokens
-    opus,     name = extract_pattern(name, OPUS_RE,     "Op{0}")
-    volume,   name = extract_pattern(name, VOLUME_RE,   "{0}{1}")
-    movement, name = extract_pattern(name, MOVEMENT_RE, "Mvt{1}")
-    bwv,      name = extract_pattern(name, BWV_RE,      "BWV{0}")
-    kv,       name = extract_pattern(name, KV_RE,       "KV{0}")
-
-    # Split remaining into parts
-    parts = [p for p in name.split() if p]
-
-    # Detect composer and instrument
-    composer,   parts = detect_composer(parts)
-    instrument, parts = detect_instrument(parts)
-
-    # Remaining parts form the title
-    title = to_camel(" ".join(parts)) if parts else None
-
-    # ── Build new filename ────────────────────────────────────
-    if category == "repertoire":
-        segments = [composer, title, instrument,
-                    bwv or kv or opus, volume, movement]
-    elif category in ("method", "etude", "technique"):
-        # Include title so leftover descriptive words (e.g. "Scales",
-        # "Fundamentals" after the category marker is stripped) aren't
-        # silently dropped — previously this branch had no title slot at
-        # all, so any such words computed by detect_composer/detect_instrument
-        # leftover logic just vanished from the final filename.
-        segments = [category.capitalize(), composer, instrument, title,
-                    opus or bwv or kv, volume]
-    elif category in ("orch", "excerpt"):
-        segments = [category.capitalize(), composer, title,
-                    instrument, bwv or kv, movement]
-    else:
-        segments = [composer, title, instrument]
-
-    segments = [s for s in segments if s]
-
-    if not segments:
-        return None
-
-    return "-".join(segments) + ".pdf"
+    # Core transform lives in app/renaming.py now, shared with
+    # dropbox_processor.py — see that module's docstring.
+    return propose_filename(filename)
 
 
 def run(music_dir: str = MUSIC_DIR, dry_run: bool = DRY_RUN):
