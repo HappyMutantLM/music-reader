@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local reader state (created at runtime on the Pi, not project config)
+.music_reader_state.json
+
+# Local runtime data if ever run outside Docker (NAS volumes hold the
+# real db/cache/pdf/logs in prod — see docker-compose.yml)
+*.db
+*.sqlite3
+/cache/
+/logs/
+
+# Env files (secrets/local overrides)
+.env
+.env.*
+
+# Editor
+.vscode/*
+!.vscode/settings.json
