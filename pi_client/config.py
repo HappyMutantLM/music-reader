@@ -21,6 +21,17 @@ PANEL_HEIGHT = 825
 VCOM = float(os.getenv("PANEL_VCOM", "-1.87"))
 SPI_HZ = int(os.getenv("PANEL_SPI_HZ", "24000000"))
 
+# Page turns use a fast DU (1bpp, black/white only) partial refresh rather
+# than a full GC16 redraw — noticeably quicker with far less flicker, which
+# matters more for a page-turn-under-your-foot instrument than photo-grade
+# grayscale. DU updates only touch pixels that changed since the last
+# refresh, but leave faint ghosting behind (an IT8951 characteristic, not a
+# bug), so every FULL_REFRESH_EVERY-th turn does a full GC16 pass instead to
+# clear it. Lower this if ghosting is visible before that point on your
+# panel; raise it if the periodic flicker is more distracting than the
+# ghosting.
+FULL_REFRESH_EVERY = int(os.getenv("PANEL_FULL_REFRESH_EVERY", "10"))
+
 # ─── pedal ──────────────────────────────────────────────────────────────────
 
 # AirTurn pedals pair as a generic Bluetooth HID keyboard. Key codes below

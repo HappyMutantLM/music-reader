@@ -9,12 +9,20 @@ Don't drift from that call shape without re-testing on hardware.
 The IT8951 import is deferred into __init__ rather than done at module
 load, so this file can still be imported (e.g. for tests) on a machine
 with no SPI hardware and no IT8951 package installed.
+
+Partial refresh: AutoDisplay (the base class behind AutoEPDDisplay) already
+tracks a prev_frame internally and diffs it against frame_buf on every
+draw_partial(mode) call, updating only the changed bounding box — no manual
+dirty-rect tracking needed here. See draw_partial()/draw_full() in the
+driver's display.py. We drive page turns with DisplayModes.DU (1bpp
+black/white, fast) and fall back to a full DisplayModes.GC16 pass
+periodically to clear the ghosting DU leaves behind.
 """
 import io
 
 from PIL import Image, ImageDraw
 
-from config import PANEL_WIDTH, PANEL_HEIGHT, VCOM, SPI_HZ
+from config import PANEL_WIDTH, PANEL_HEIGHT, VCOM, SPI_HZ, FULL_REFRESH_EVERY
 
 
 class EinkDisplay:
@@ -43,14 +51,22 @@ class EinkDisplay:
                 "fill the screen correctly until config.py is updated."
             )
 
-    def show_page(self, png_bytes: bytes):
-        """Full-refresh redraw of a page image.
+        # Turns since the last full GC16 refresh. clear() above already
+        # did a full (INIT-mode) draw and set the driver's prev_frame, so
+        # the very first show_page() diffs cleanly against a blank page —
+        # starting this at 0 is correct, not a special-cased "first call".
+        self._turns_since_full = 0
 
-        Every page turn does a full GC16 refresh for now — slower and
-        more visible flicker than a partial refresh, but ghost-free and
-        simple. Partial refresh is a separate not-yet-done task (see
-        project notes); swap the draw_full call below for the driver's
-        partial-refresh path once that's been tested.
+    def show_page(self, png_bytes: bytes):
+        """Push a page image to the panel.
+
+        Most turns use a DU (black/white, 1bpp) partial refresh: fast and
+        low-flicker, and plenty legible for notation, which is already
+        just black ink on white. DU is a lossy waveform though — repeated
+        partial updates accumulate faint ghosting — so every
+        FULL_REFRESH_EVERY-th turn does a full GC16 redraw instead to
+        clear it. GC16 is also what runs on the very first page of a
+        session, via clear() in __init__.
         """
         img = Image.open(io.BytesIO(png_bytes)).convert("L")
 
@@ -62,17 +78,28 @@ class EinkDisplay:
         x = (self.width - img.width) // 2
         y = (self.height - img.height) // 2
         canvas.paste(img, (x, y))
-
         self.display.frame_buf.paste(canvas, (0, 0))
+
+        if self._turns_since_full >= FULL_REFRESH_EVERY:
+            self._full_refresh()
+        else:
+            self.display.draw_partial(self._constants.DisplayModes.DU)
+            self._turns_since_full += 1
+
+    def _full_refresh(self):
         self.display.draw_full(self._constants.DisplayModes.GC16)
+        self._turns_since_full = 0
 
     def show_message(self, text: str):
         """Full-screen plain-text message for errors/status (backend
         unreachable, no score loaded, page fetch failed) — not sheet
         music, just enough feedback that the panel isn't a blank
-        mystery when something's wrong."""
+        mystery when something's wrong. Always a full GC16 refresh
+        (messages are rare and unrelated to the page content before/after
+        them, so there's no ghosting benefit to a partial update here),
+        and resets the turn counter so the next real page starts clean."""
         canvas = Image.new("L", (self.width, self.height), 0xFF)
         draw = ImageDraw.Draw(canvas)
         draw.multiline_text((40, self.height // 2 - 20), text, fill=0)
         self.display.frame_buf.paste(canvas, (0, 0))
-        self.display.draw_full(self._constants.DisplayModes.GC16)
+        self._full_refresh()
