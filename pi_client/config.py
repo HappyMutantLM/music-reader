@@ -39,7 +39,7 @@ FULL_REFRESH_EVERY = int(os.getenv("PANEL_FULL_REFRESH_EVERY", "10"))
 # pedal = Right arrow). If AirTurn Manager was used to remap the pedal,
 # update these two to match whatever it actually sends — run
 # `python pedal_input.py --probe` to see raw key names.
-PEDAL_DEVICE_NAME_HINT = os.getenv("PEDAL_DEVICE_NAME_HINT", "AirTurn")
+PEDAL_DEVICE_NAME_HINT = os.getenv("PEDAL_DEVICE_NAME_HINT", "PageFlip")
 KEY_NEXT_PAGE = os.getenv("PEDAL_KEY_NEXT", "KEY_RIGHT")
 KEY_PREV_PAGE = os.getenv("PEDAL_KEY_PREV", "KEY_LEFT")
 
