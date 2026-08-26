@@ -2,7 +2,7 @@
 Main entry point for the Pi e-ink display client. Ties together:
   - api_client:     fetch page images + score/setlist metadata from the FastAPI backend
   - display_driver: push images to the Waveshare/IT8951 panel
-  - pedal_input:    AirTurn pedal taps drive page turns
+  - pedal_input:    PageFlip Dragonfly pedal taps drive page turns
   - state:          persist current position so a restart resumes where it left off
 
 Two modes:

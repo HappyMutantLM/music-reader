@@ -2,7 +2,7 @@
 
 Runs on the Pi (4B now, CM4 for the final build) and drives the
 Waveshare 9.7" IT8951 panel: fetches rendered pages from the FastAPI
-backend and turns pages via the AirTurn pedal.
+backend and turns pages via the PageFlip Dragonfly pedal.
 
 ## Setup
 
@@ -27,8 +27,8 @@ Everything lives in `config.py`, overridable via env vars:
 | `PANEL_VCOM` | `-1.87` | **Printed on the panel's ribbon cable** — never guess this |
 | `PANEL_SPI_HZ` | `24000000` | SPI clock speed |
 | `PANEL_FULL_REFRESH_EVERY` | `10` | Page turns between full GC16 refreshes (partial DU turns in between) |
-| `PEDAL_DEVICE_NAME_HINT` | `AirTurn` | Substring match against `/dev/input` device names |
-| `PEDAL_KEY_NEXT` / `PEDAL_KEY_PREV` | `KEY_RIGHT` / `KEY_LEFT` | AirTurn factory defaults — update if AirTurn Manager remapped the pedal |
+| `PEDAL_DEVICE_NAME_HINT` | `PageFlip` | Substring match against `/dev/input` device names. Matches "PageFlip Dragonfly" (V5+ pedals, USB-C port). Pedals marked V4 or earlier broadcast as "Quad Pedal" instead — check the version label on the underside of the pedal and set this to `Quad Pedal` if so. |
+| `PEDAL_KEY_NEXT` / `PEDAL_KEY_PREV` | `KEY_DOWN` / `KEY_UP` | Best-guess mapping for the Dragonfly's default mode — **not yet hardware-confirmed**, see Known gaps below |
 | `READER_STATE_FILE` | `~/.music_reader_state.json` | Last (score_id, page_number) |
 
 Find the pedal's actual device name and key codes with:
@@ -48,6 +48,23 @@ Subsequent runs resume the last score/page automatically — omit
 
 ## Known gaps / next steps
 
+- **Pedal key codes: guessed, not hardware-confirmed.** The project
+  switched from an AirTurn pedal to a PageFlip Dragonfly. Per the
+  Dragonfly's manual, its *primary* (larger) pedals never send
+  Left/Right Arrow in any of its five preset modes — only Stop/Play,
+  Up/Down Arrow, or Space/Enter. Left/Right Arrow is exclusively a
+  *secondary* (small, top) pedal function on that device. `PEDAL_KEY_NEXT`
+  / `PEDAL_KEY_PREV` now default to `KEY_DOWN`/`KEY_UP` on that basis
+  (matching the primary pedals' factory-default mode), but which
+  physical pedal — left or right — actually sends Up vs. Down isn't
+  documented anywhere. **Before trusting this at a gig:** run
+  `python pedal_input.py --probe`, tap each primary pedal, and confirm
+  (or flip) the two key codes above.
+- **Pedal device-name hint depends on hardware version.** `PEDAL_DEVICE_NAME_HINT`
+  defaults to `PageFlip`, matching a V5+ Dragonfly's Bluetooth name
+  ("PageFlip Dragonfly"). A pre-V5 pedal broadcasts as "Quad Pedal"
+  instead and won't be found with this hint — check the version label on
+  the pedal's underside.
 - **No on-panel score picker.** Score is chosen via `--score-id` or by
   editing the state file directly. A future "browse the library"
   screen would remove this.

@@ -34,14 +34,39 @@ FULL_REFRESH_EVERY = int(os.getenv("PANEL_FULL_REFRESH_EVERY", "10"))
 
 # ─── pedal ──────────────────────────────────────────────────────────────────
 
-# AirTurn pedals pair as a generic Bluetooth HID keyboard. Key codes below
-# match AirTurn's factory default mapping (left pedal = Left arrow, right
-# pedal = Right arrow). If AirTurn Manager was used to remap the pedal,
-# update these two to match whatever it actually sends — run
-# `python pedal_input.py --probe` to see raw key names.
+# PageFlip Dragonfly Bluetooth/USB quad pedal — replaces the AirTurn pedal
+# used earlier in the project. Like the AirTurn, it pairs as a generic
+# Bluetooth HID keyboard, so the same evdev-based approach in
+# pedal_input.py still works unchanged; only the device-name hint and key
+# codes below needed to change.
+#
+# Device name: V5+ Dragonflies (the ones with a USB-C port on the back)
+# broadcast as "PageFlip Dragonfly", which this hint matches. Pedals
+# marked V4 or earlier (micro-USB port) broadcast as "Quad Pedal" instead
+# — this hint would NOT match one of those. Check the version printed on
+# the label on the underside of the pedal before assuming pairing works
+# out of the box; set this to "Quad Pedal" if it's a <V5 unit.
 PEDAL_DEVICE_NAME_HINT = os.getenv("PEDAL_DEVICE_NAME_HINT", "PageFlip")
-KEY_NEXT_PAGE = os.getenv("PEDAL_KEY_NEXT", "KEY_RIGHT")
-KEY_PREV_PAGE = os.getenv("PEDAL_KEY_PREV", "KEY_LEFT")
+
+# Key codes for the two *primary* (larger) pedals — the ones actually
+# meant to be tapped with a foot mid-performance. Per the Dragonfly's own
+# manual, the primary pedals never send Left/Right Arrow in any of its
+# five preset modes (only Stop/Play, Up/Down Arrow, or Space/Enter) —
+# Left/Right Arrow is exclusively a *secondary* (small, top) pedal
+# function there. The pedal's factory-default mode immediately after
+# first pairing is the middle preset ("left/right and up/down arrow
+# keys"), which sends Up/Down Arrow from the primary pedals.
+#
+# KEY_DOWN/KEY_UP below is a best guess (Up = previous, Down = next),
+# chosen to mirror the left=prev/right=next handedness the old AirTurn
+# KEY_LEFT/KEY_RIGHT mapping used — the Dragonfly manual doesn't document
+# which physical primary pedal (left vs. right) sends Up vs. Down.
+# NOT hardware-confirmed. Run `python pedal_input.py --probe` and tap
+# each primary pedal before trusting this at a performance; swap the two
+# values below if the mapping turns out reversed, or if the pedal's been
+# reprogrammed via the PageFlip app to a different mode.
+KEY_NEXT_PAGE = os.getenv("PEDAL_KEY_NEXT", "KEY_DOWN")
+KEY_PREV_PAGE = os.getenv("PEDAL_KEY_PREV", "KEY_UP")
 
 # ─── state persistence ──────────────────────────────────────────────────────
 

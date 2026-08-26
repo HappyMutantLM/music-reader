@@ -1,13 +1,16 @@
 """
-Reads AirTurn pedal presses. The AirTurn pairs as a standard Bluetooth
-HID keyboard, so once paired it shows up as a /dev/input/event* device
-like any other keyboard — evdev just needs to find that device and
-listen for key-down events.
+Reads PageFlip Dragonfly pedal presses. Like the AirTurn pedal used
+earlier in this project, the Dragonfly pairs as a standard Bluetooth HID
+keyboard, so once paired it shows up as a /dev/input/event* device like
+any other keyboard — evdev just needs to find that device and listen for
+key-down events.
 
 Run this file directly to see what the pedal actually sends:
     python pedal_input.py --probe
 then set PEDAL_KEY_NEXT / PEDAL_KEY_PREV (env vars, see config.py) if it
-doesn't match the KEY_RIGHT/KEY_LEFT defaults.
+doesn't match the KEY_DOWN/KEY_UP defaults — those defaults are an
+unconfirmed best guess (see config.py's comment), not a measured value,
+so probing before a performance matters more here than it used to.
 """
 import argparse
 
@@ -19,7 +22,9 @@ from config import PEDAL_DEVICE_NAME_HINT, KEY_NEXT_PAGE, KEY_PREV_PAGE
 def find_pedal_device():
     """Returns the first /dev/input device whose name contains
     PEDAL_DEVICE_NAME_HINT, or None if nothing matches (pedal not
-    paired, or AirTurn Manager renamed it to something unexpected)."""
+    paired, or the PageFlip app was used to rename/remap it to something
+    unexpected — or it's a <V5 pedal broadcasting as "Quad Pedal" instead
+    of "PageFlip Dragonfly", see config.py)."""
     for path in list_devices():
         dev = InputDevice(path)
         if PEDAL_DEVICE_NAME_HINT.lower() in dev.name.lower():
