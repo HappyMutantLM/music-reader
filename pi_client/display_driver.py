@@ -2,9 +2,16 @@
 Wrapper around GregDMeyer's IT8951 python driver
 (https://github.com/GregDMeyer/IT8951). The AutoEPDDisplay(...) call,
 .clear(), .frame_buf.paste(...), and .draw_full(constants.DisplayModes.GC16)
-sequence below mirrors eink_test.py exactly — the bare-bones script that
-was actually run on the Pi 4B + Waveshare 9.7" HAT and confirmed working.
-Don't drift from that call shape without re-testing on hardware.
+sequence below mirrors eink_test.py — the bare-bones script that was
+actually run on the Pi 4B + Waveshare 9.7" HAT and confirmed working —
+with one deliberate difference: `rotate` is now PANEL_ROTATE instead of
+eink_test.py's hardcoded None. eink_test.py was only ever run with the
+bare panel on a desk, never inside the enclosure; once mounted in the
+enclosure (which holds the panel in portrait, 90° from its native
+landscape orientation) the un-rotated framebuffer showed up sideways and
+only partially filling the panel. Everything else still matches
+eink_test.py's call shape — don't drift further without re-testing on
+hardware.
 
 The IT8951 import is deferred into __init__ rather than done at module
 load, so this file can still be imported (e.g. for tests) on a machine
@@ -22,7 +29,7 @@ import io
 
 from PIL import Image, ImageDraw
 
-from config import PANEL_WIDTH, PANEL_HEIGHT, VCOM, SPI_HZ, FULL_REFRESH_EVERY
+from config import PANEL_WIDTH, PANEL_HEIGHT, VCOM, SPI_HZ, FULL_REFRESH_EVERY, PANEL_ROTATE
 
 
 class EinkDisplay:
@@ -31,8 +38,13 @@ class EinkDisplay:
         from IT8951.display import AutoEPDDisplay
 
         self._constants = constants
-        # rotate=None + these two args match eink_test.py's working call.
-        self.display = AutoEPDDisplay(vcom=VCOM, rotate=None, spi_hz=SPI_HZ)
+        # rotate=PANEL_ROTATE compensates for the enclosure mounting the
+        # panel in portrait, 90° from its native landscape orientation.
+        # When set to "CW"/"CCW", the driver also swaps its reported
+        # width/height to the rotated (logical) shape — which is why
+        # self.width/self.height below come out as the portrait
+        # PANEL_WIDTH/PANEL_HEIGHT rather than the panel's raw 1200x825.
+        self.display = AutoEPDDisplay(vcom=VCOM, rotate=PANEL_ROTATE, spi_hz=SPI_HZ)
         self.display.clear()  # NOT display.epd.clear() — matches eink_test.py
 
         # Trust the driver's own reported resolution (also printed by

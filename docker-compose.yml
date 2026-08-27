@@ -20,6 +20,14 @@ services:
       - DB_PATH=/db/music.db
       - LOG_DIR=/logs
       - ALLOWED_ORIGINS=http://localhost:5173,http://memoryalpha:8000
+      # Portrait shape (825x1200), not the panel's raw 1200x825 landscape
+      # spec — the enclosure mounts the Waveshare panel rotated 90° for
+      # portrait sheet-music reading (see pi_client's PANEL_ROTATE), so
+      # pages need to be rendered to fill that rotated shape rather than
+      # a landscape box. Keep these in sync with pi_client/config.py's
+      # PANEL_WIDTH/PANEL_HEIGHT.
+      - PANEL_WIDTH=825
+      - PANEL_HEIGHT=1200
     working_dir: /app
     command: >
       sh -c "pip install -q -r requirements.txt &&

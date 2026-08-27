@@ -9,11 +9,25 @@ REQUEST_TIMEOUT = 10  # seconds
 
 # ─── display panel ──────────────────────────────────────────────────────────
 
-# Waveshare 9.7" IT8951 HAT. Matches routers/pages.py's PANEL_WIDTH/
-# PANEL_HEIGHT defaults on the backend — the two should stay in sync so
-# rendered pages arrive already sized close to the panel's native res.
-PANEL_WIDTH = 1200
-PANEL_HEIGHT = 825
+# Waveshare 9.7" IT8951 HAT. The panel's native controller resolution is
+# 1200(H)x825(V) (landscape) — but the enclosure mounts it rotated 90°
+# for portrait sheet-music reading, so PANEL_WIDTH/PANEL_HEIGHT below are
+# the *logical* (post-rotation) shape, not the raw panel spec. Matches
+# routers/pages.py's PANEL_WIDTH/PANEL_HEIGHT on the backend — the two
+# should stay in sync so rendered pages arrive already sized close to the
+# panel's actual usable area.
+PANEL_WIDTH = 825
+PANEL_HEIGHT = 1200
+
+# Tells the IT8951 driver how the panel is physically mounted relative to
+# its native orientation, so it can rotate the framebuffer in software
+# before writing to the panel. One of "CW", "CCW", "flip", or "" (no
+# rotation — the panel's native landscape orientation). The enclosure
+# mounts the panel in portrait, so this needs to be "CW" or "CCW" — which
+# one depends on which way it was physically turned, and isn't
+# documented anywhere; if the image comes out upside-down or mirrored
+# after picking one, try the other.
+PANEL_ROTATE = os.getenv("PANEL_ROTATE", "CW") or None
 
 # Printed on the panel's ribbon cable. Do not guess this value — using the
 # wrong VCOM produces poor contrast/ghosting and can affect panel
