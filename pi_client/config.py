@@ -46,6 +46,18 @@ SPI_HZ = int(os.getenv("PANEL_SPI_HZ", "24000000"))
 # ghosting.
 FULL_REFRESH_EVERY = int(os.getenv("PANEL_FULL_REFRESH_EVERY", "10"))
 
+# Anti-aliased text/line edges from the backend's grayscale renders come
+# through as mid-gray pixel values, but every refresh mode used here —
+# DU (strictly black/white) and even the "grayscale" GC16 pass, once
+# printed to actual e-ink pigment — needs strong enough contrast to read
+# as solid black, or thin strokes come out faint or broken up (this is
+# what showed up on the very first page tested in the enclosure).
+# Thresholding to pure black/white before every draw keeps notation
+# crisp regardless of refresh mode. Lower this (toward 0) if text comes
+# out too thick/bold; raise it (toward 255) if thin lines are still
+# dropping out.
+PANEL_BW_THRESHOLD = int(os.getenv("PANEL_BW_THRESHOLD", "200"))
+
 # ─── pedal ──────────────────────────────────────────────────────────────────
 
 # PageFlip Dragonfly Bluetooth/USB quad pedal — replaces the AirTurn pedal

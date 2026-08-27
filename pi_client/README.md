@@ -27,6 +27,7 @@ Everything lives in `config.py`, overridable via env vars:
 | `PANEL_VCOM` | `-1.87` | **Printed on the panel's ribbon cable** — never guess this |
 | `PANEL_SPI_HZ` | `24000000` | SPI clock speed |
 | `PANEL_ROTATE` | `CW` | Compensates for the enclosure mounting the panel in portrait (90° from its native 1200x825 landscape orientation). One of `CW`/`CCW`/`flip`/empty. If the image comes out upside-down or mirrored, try `CCW` instead. |
+| `PANEL_BW_THRESHOLD` | `200` | Grayscale pixels this light or lighter become pure white before every draw (rest become pure black) — keeps anti-aliased text/lines from washing out under DU/GC16. Lower toward `0` if text looks too bold; raise toward `255` if thin lines are still dropping out. |
 | `PANEL_FULL_REFRESH_EVERY` | `10` | Page turns between full GC16 refreshes (partial DU turns in between) |
 | `PEDAL_DEVICE_NAME_HINT` | `PageFlip` | Substring match against `/dev/input` device names. Matches "PageFlip Dragonfly" (V5+ pedals, USB-C port). Pedals marked V4 or earlier broadcast as "Quad Pedal" instead — check the version label on the underside of the pedal and set this to `Quad Pedal` if so. |
 | `PEDAL_KEY_NEXT` / `PEDAL_KEY_PREV` | `KEY_DOWN` / `KEY_UP` | Best-guess mapping for the Dragonfly's default mode — **not yet hardware-confirmed**, see Known gaps below |
@@ -62,6 +63,18 @@ Subsequent runs resume the last score/page automatically — omit
   **Not yet confirmed which of CW/CCW is correct** for how the panel was
   physically turned — if it's upside-down or mirrored after this change,
   set `PANEL_ROTATE=CCW`.
+- **Faint/broken-up text: two stacked bugs, now fixed.** (1) The very
+  first page of a session was going through the fast DU (1bpp,
+  black/white-only) refresh path instead of a proper grayscale GC16
+  draw — `clear()` in `display_driver.py`'s `__init__` only blanks the
+  panel, it never draws real content, so seeding the "turns since full
+  refresh" counter at 0 was wrong. Now seeded at `FULL_REFRESH_EVERY` so
+  the first page always forces a full GC16 draw. (2) Nothing was
+  thresholding the backend's anti-aliased grayscale renders to pure
+  black/white before display, so thin/anti-aliased strokes could wash
+  out under DU (and even under GC16, once printed to actual e-ink
+  pigment). Fixed via `PANEL_BW_THRESHOLD` above, applied to every page
+  before it's pasted onto the panel canvas.
 - **Pedal key codes: guessed, not hardware-confirmed.** The project
   switched from an AirTurn pedal to a PageFlip Dragonfly. Per the
   Dragonfly's manual, its *primary* (larger) pedals never send

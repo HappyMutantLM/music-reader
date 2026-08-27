@@ -29,7 +29,10 @@ import io
 
 from PIL import Image, ImageDraw
 
-from config import PANEL_WIDTH, PANEL_HEIGHT, VCOM, SPI_HZ, FULL_REFRESH_EVERY, PANEL_ROTATE
+from config import (
+    PANEL_WIDTH, PANEL_HEIGHT, VCOM, SPI_HZ, FULL_REFRESH_EVERY, PANEL_ROTATE,
+    PANEL_BW_THRESHOLD,
+)
 
 
 class EinkDisplay:
@@ -63,24 +66,41 @@ class EinkDisplay:
                 "fill the screen correctly until config.py is updated."
             )
 
-        # Turns since the last full GC16 refresh. clear() above already
-        # did a full (INIT-mode) draw and set the driver's prev_frame, so
-        # the very first show_page() diffs cleanly against a blank page —
-        # starting this at 0 is correct, not a special-cased "first call".
-        self._turns_since_full = 0
+        # Turns since the last full GC16 refresh. Deliberately seeded at
+        # FULL_REFRESH_EVERY (not 0) so the very first show_page() call
+        # goes through the full-refresh branch below: clear() above only
+        # blanks the panel to white and resets the driver's prev_frame —
+        # it does NOT draw any real content — so without this, the first
+        # actual page would incorrectly take the fast DU (1bpp,
+        # black/white-only) path meant for incremental page-turn
+        # updates, rather than a proper grayscale GC16 draw. That mistake
+        # is what left the very first page looking faint/broken up when
+        # this was first tested in the enclosure.
+        self._turns_since_full = FULL_REFRESH_EVERY
 
     def show_page(self, png_bytes: bytes):
         """Push a page image to the panel.
 
         Most turns use a DU (black/white, 1bpp) partial refresh: fast and
-        low-flicker, and plenty legible for notation, which is already
-        just black ink on white. DU is a lossy waveform though — repeated
-        partial updates accumulate faint ghosting — so every
-        FULL_REFRESH_EVERY-th turn does a full GC16 redraw instead to
-        clear it. GC16 is also what runs on the very first page of a
-        session, via clear() in __init__.
+        low-flicker, and plenty legible for notation now that the image
+        is thresholded to pure black/white first (see below). DU is a
+        lossy waveform though — repeated partial updates accumulate
+        faint ghosting — so every FULL_REFRESH_EVERY-th turn does a full
+        GC16 redraw instead to clear it. The very first page of a
+        session also forces a GC16 draw (see _turns_since_full's seed
+        value in __init__) rather than trusting clear() to have already
+        drawn real content, which it doesn't.
         """
         img = Image.open(io.BytesIO(png_bytes)).convert("L")
+
+        # Threshold to pure black/white. The backend renders with
+        # anti-aliasing, so glyph/line edges arrive as mid-gray pixel
+        # values — but DU is strictly 1bpp black/white, and even GC16's
+        # 16 gray levels need real contrast to read as solid black once
+        # actually printed to e-ink pigment. Without this, thin or
+        # anti-aliased strokes can wash out or drop entirely (see
+        # PANEL_BW_THRESHOLD's comment in config.py).
+        img = img.point(lambda p: 255 if p >= PANEL_BW_THRESHOLD else 0)
 
         # Center the (already panel-scaled) page on the full panel
         # canvas rather than assume the backend's render exactly fills
