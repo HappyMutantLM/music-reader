@@ -8,9 +8,9 @@ key-down events.
 Run this file directly to see what the pedal actually sends:
     python pedal_input.py --probe
 then set PEDAL_KEY_NEXT / PEDAL_KEY_PREV (env vars, see config.py) if it
-doesn't match the KEY_DOWN/KEY_UP defaults — those defaults are an
-unconfirmed best guess (see config.py's comment), not a measured value,
-so probing before a performance matters more here than it used to.
+doesn't match the KEY_DOWN/KEY_UP defaults. Those defaults are
+hardware-confirmed on Leila's pedal (left = back, right = forward); only
+re-probe if the pedal is re-paired or reprogrammed via the PageFlip app.
 """
 import argparse
 

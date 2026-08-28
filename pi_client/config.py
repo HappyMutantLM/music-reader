@@ -83,14 +83,11 @@ PEDAL_DEVICE_NAME_HINT = os.getenv("PEDAL_DEVICE_NAME_HINT", "PageFlip")
 # first pairing is the middle preset ("left/right and up/down arrow
 # keys"), which sends Up/Down Arrow from the primary pedals.
 #
-# KEY_DOWN/KEY_UP below is a best guess (Up = previous, Down = next),
-# chosen to mirror the left=prev/right=next handedness the old AirTurn
-# KEY_LEFT/KEY_RIGHT mapping used — the Dragonfly manual doesn't document
-# which physical primary pedal (left vs. right) sends Up vs. Down.
-# NOT hardware-confirmed. Run `python pedal_input.py --probe` and tap
-# each primary pedal before trusting this at a performance; swap the two
-# values below if the mapping turns out reversed, or if the pedal's been
-# reprogrammed via the PageFlip app to a different mode.
+# Hardware-confirmed on Leila's pedal: with these defaults exactly as
+# written, the left primary pedal turns back a page and the right
+# primary pedal turns forward — no further probing needed for this unit
+# unless it's re-paired or reprogrammed via the PageFlip app to a
+# different mode.
 KEY_NEXT_PAGE = os.getenv("PEDAL_KEY_NEXT", "KEY_DOWN")
 KEY_PREV_PAGE = os.getenv("PEDAL_KEY_PREV", "KEY_UP")
 
