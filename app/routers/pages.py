@@ -2,16 +2,38 @@ import os
 
 import fitz  # PyMuPDF
 from fastapi import APIRouter, HTTPException, Response
+from PIL import Image
 
 from database import get_db
 from ingest_core import PDF_DIR
 
 CACHE_DIR = os.getenv("CACHE_DIR", "/cache")
 
-# Waveshare 9.7" IT8951 panel resolution. Pages are scaled to fit this
-# box (preserving aspect ratio) rather than stretched to fill it exactly.
-PANEL_WIDTH = int(os.getenv("PANEL_WIDTH", "1200"))
-PANEL_HEIGHT = int(os.getenv("PANEL_HEIGHT", "825"))
+# Waveshare 9.7" IT8951 panel, logical (post-rotation) portrait shape —
+# the enclosure mounts the panel rotated 90° from its native 1200x825
+# landscape resolution. Pages are scaled to fit this box (preserving
+# aspect ratio) rather than stretched to fill it exactly. Keep these in
+# sync with pi_client/config.py's PANEL_WIDTH/PANEL_HEIGHT.
+PANEL_WIDTH = int(os.getenv("PANEL_WIDTH", "825"))
+PANEL_HEIGHT = int(os.getenv("PANEL_HEIGHT", "1200"))
+
+# Detection resolution used to find each page's actual content bounding
+# box before cropping (see _render_page_png). Deliberately higher than
+# the panel needs so a tightly-cropped page still downsamples cleanly
+# instead of upscaling a low-res crop.
+CONTENT_DETECT_SCALE = 4.0
+
+# A pixel this light or lighter (0-255, grayscale) counts as background
+# when finding each page's content bounding box. Scanned scores vary
+# page to page in how much margin surrounds the actual engraving —
+# without cropping to content first, a page with more margin (e.g. a
+# piece that ends partway down the page) renders its notation
+# noticeably smaller than a page whose content runs edge to edge, even
+# though both pages are the same physical size. Lower this if faint
+# scan artifacts near page edges are being picked up as "content" and
+# preventing a tight crop; raise it if genuinely light-but-real marks
+# (soft pencil, faint slurs) are being cropped away.
+CONTENT_WHITE_THRESHOLD = int(os.getenv("CONTENT_WHITE_THRESHOLD", "250"))
 
 router = APIRouter()
 
@@ -37,12 +59,12 @@ def _find_pdf_path(filename: str) -> str | None:
 
 
 def _render_page_png(pdf_path: str, page_number: int) -> bytes:
-    """Render one page (1-indexed) of pdf_path to a grayscale PNG scaled
-    to fit the panel. Raises HTTPException(404) if page_number is out of
-    range for the actual PDF (belt-and-suspenders alongside the
-    score.page_count check in get_page — that column can be null/stale
-    for a score ingested before page_count existed or ingested
-    incorrectly)."""
+    """Render one page (1-indexed) of pdf_path to a grayscale PNG, cropped
+    to its actual printed content and scaled to fit the panel. Raises
+    HTTPException(404) if page_number is out of range for the actual PDF
+    (belt-and-suspenders alongside the score.page_count check in
+    get_page — that column can be null/stale for a score ingested before
+    page_count existed or ingested incorrectly)."""
     doc = fitz.open(pdf_path)
     try:
         if page_number < 1 or page_number > doc.page_count:
@@ -53,14 +75,42 @@ def _render_page_png(pdf_path: str, page_number: int) -> bytes:
 
         page = doc.load_page(page_number - 1)  # fitz pages are 0-indexed
 
-        # Scale by whichever dimension is the binding constraint so the
-        # page fits inside the panel box without distortion, then render
-        # straight to grayscale — no separate PIL conversion pass needed.
-        rect = page.rect
-        scale = min(PANEL_WIDTH / rect.width, PANEL_HEIGHT / rect.height)
-        matrix = fitz.Matrix(scale, scale)
+        # Render at a higher resolution than the panel needs so cropping
+        # to content below still leaves enough pixels to downsample
+        # cleanly, then find the bounding box of everything that isn't
+        # near-white — i.e. the actual printed music, ignoring however
+        # much blank margin this particular page happens to have.
+        matrix = fitz.Matrix(CONTENT_DETECT_SCALE, CONTENT_DETECT_SCALE)
         pix = page.get_pixmap(matrix=matrix, colorspace=fitz.csGRAY)
-        return pix.tobytes("png")
+        img = Image.frombytes("L", (pix.width, pix.height), pix.samples)
+
+        bbox = Image.eval(img, lambda p: 0 if p >= CONTENT_WHITE_THRESHOLD else 255).getbbox()
+        if bbox:
+            # Small breathing room so notation doesn't touch the panel's
+            # edge exactly — proportional to image size so it scales
+            # sensibly across different page sizes/scan resolutions.
+            pad = round(0.015 * min(img.width, img.height))
+            left = max(bbox[0] - pad, 0)
+            top = max(bbox[1] - pad, 0)
+            right = min(bbox[2] + pad, img.width)
+            bottom = min(bbox[3] + pad, img.height)
+            img = img.crop((left, top, right, bottom))
+        # bbox is None for a genuinely blank page — fall back to the
+        # full (blank) render rather than crashing on an empty crop.
+
+        # Scale by whichever dimension is the binding constraint so the
+        # cropped content fits inside the panel box without distortion.
+        scale = min(PANEL_WIDTH / img.width, PANEL_HEIGHT / img.height)
+        target_size = (
+            max(1, round(img.width * scale)),
+            max(1, round(img.height * scale)),
+        )
+        img = img.resize(target_size, Image.LANCZOS)
+
+        import io
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
     finally:
         doc.close()
 
