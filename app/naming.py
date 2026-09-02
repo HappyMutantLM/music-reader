@@ -13,6 +13,13 @@ instrument, or category synonym, add it here once — both scripts pick it up.
 import re
 
 # ── Known composers — expand as needed ─────────────────────────────────────
+# Multi-word names (an initial + surname, a hyphenated surname whose hyphen
+# renaming.py has already turned into a space by the time this is checked,
+# etc.) are stored glued with no separator — e.g. "lpierce", not "l pierce"
+# or "l-pierce" — because detect_composer() below matches by gluing
+# candidate word-groups together the same way before comparing. Where the
+# word order in a raw filename might go either way, both orders are listed
+# (see "lpierce"/"piercel") rather than betting on one.
 COMPOSERS = {
     "bach", "bachjs", "bachcpe",
     "beethoven", "brahms", "chopin", "debussy",
@@ -29,6 +36,8 @@ COMPOSERS = {
     # Popular
     "billjoel", "billyjoel", "loureed", "queen", "joplin", "bowie",
     "comeau",
+    # Multi-word (initial + surname) — see comment above
+    "lpierce", "piercel",
 }
 
 # ── Known instruments ───────────────────────────────────────────────────────
@@ -128,10 +137,31 @@ def find_category_keyword(name_lower: str, category: str) -> str | None:
 
 
 def detect_composer(parts: list) -> tuple:
-    """Find composer in parts, return (composer, remaining_parts)."""
-    for i, part in enumerate(parts):
-        if part.lower() in COMPOSERS:
-            return to_camel(part), parts[:i] + parts[i + 1:]
+    """Find composer in parts, return (composer, remaining_parts).
+
+    Checks windows of 1 to 3 consecutive words (longest first) against
+    COMPOSERS, comparing each window glued together with no separator —
+    e.g. ["L", "Pierce"] is tested as "lpierce". Single-word entries still
+    match exactly as before (a window of 1 glues to just that word), but
+    this also catches a multi-word name as a unit — an initial + surname,
+    or a hyphenated surname whose hyphen has already become a space by the
+    time this runs (propose_filename() converts "-"/"_" to spaces before
+    any detection happens) — instead of only ever being able to check one
+    word at a time. Longest-window-first so a multi-word entry isn't
+    pre-empted by a shorter single-word match sharing its first word.
+
+    Composer names longer than 3 words are rare enough in practice not to
+    bother widening this further; if one comes up, raise max_window.
+    """
+    max_window = min(3, len(parts))
+    for window in range(max_window, 0, -1):
+        for i in range(len(parts) - window + 1):
+            candidate = parts[i:i + window]
+            glued = "".join(candidate).lower()
+            if glued in COMPOSERS:
+                composer = to_camel(" ".join(candidate))
+                remaining = parts[:i] + parts[i + window:]
+                return composer, remaining
     return None, parts
 
 
@@ -155,7 +185,13 @@ def extract_pattern(text: str, pattern: re.Pattern, fmt: str) -> tuple:
 def is_known_composer(name: str) -> bool:
     """Sanity-check helper for ingest.py: flag composer tokens that don't
     match the known list, since parse_filename() trusts filename structure
-    positionally and doesn't otherwise validate against COMPOSERS."""
+    positionally and doesn't otherwise validate against COMPOSERS.
+
+    A multi-word composer ends up as a single glued token by the time it
+    reaches here (detect_composer()/to_camel() glue candidate words with
+    no separator, e.g. "LPierce"), so a plain lowercase lookup against the
+    same glued COMPOSERS entries is still correct — no windowing needed on
+    this side."""
     if not name:
         return False
     return name.lower() in COMPOSERS
