@@ -11,12 +11,14 @@ them automatically:
      PDF_DIR is already watched recursively by watcher.py (see app/watcher.py),
      so this move alone triggers ingestion — dropbox_processor.py does not
      touch the database directly.
-  4. Duplicate content (hash already seen before, whether previously filed
-     or previously sent to review) -> also routed to NEEDS_REVIEW_DIR with
-     an explanatory sidecar, rather than left sitting untouched in the
-     dropbox — see the hash-match branch in _handle() for why this matters.
+  4. Duplicate content (hash matches something already *successfully
+     filed* in a past run — not merely sent to review, see the ledger
+     notes below) -> also routed to NEEDS_REVIEW_DIR with an explanatory
+     sidecar, rather than left sitting untouched in the dropbox.
   5. Anything else unconfident -> move into NEEDS_REVIEW_DIR with a sidecar
-     .txt explaining why, so nothing is silently lost or mis-filed.
+     .txt explaining why, so nothing is silently lost or mis-filed. Not
+     ledgered as a "duplicate" candidate — see the ledger notes below for
+     why a needs-review outcome has to stay retry-able.
 
 Deliberately a separate long-running process from the FastAPI app (and
 from its embedded PDF_DIR watcher thread) — a crash or restart here has no
@@ -56,20 +58,32 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# Ledger of already-handled files (by content hash), so a mid-run restart
-# doesn't reprocess a file whose move it already completed. Persisted as a
-# flat file next to the log so it survives container restarts.
+# Ledger of content hashes that have been *successfully filed* into the
+# library (only — see _file_it()'s success path, the sole place this gets
+# written to). Persisted as a flat file next to the log so it survives
+# container restarts.
 #
-# NOTE: this ledger never expires and is keyed on content hash alone, so
-# it also matches any *future* file with identical content — not just a
-# replayed event for the same in-flight move. See _handle()'s hash-match
-# branch: a match here used to short-circuit with no file movement at
-# all, which is what let files go "stuck" in DROPBOX_DIR (a re-copy of
-# something already processed once would just sit there forever, since
-# nothing else ever re-visits files already living in the watched
-# folder). It now always routes a hash match to needs_review instead, so
-# the file never gets stranded, at the cost of not being fully silent
-# about genuine duplicates — that tradeoff is intentional.
+# Two past bugs shaped this, worth keeping in mind before changing it
+# again:
+#   - A hash match used to short-circuit with no file movement at all,
+#     which let files go "stuck" in DROPBOX_DIR forever (a re-copy of
+#     something already filed would just sit there, since nothing else
+#     ever re-visits a file still living in the watched folder). Fixed by
+#     always routing a hash match to needs_review instead, at the cost of
+#     not being fully silent about genuine duplicates — intentional.
+#   - This ledger used to *also* get written to on a needs-review outcome
+#     (low confidence, or a destination-filename collision) — meaning a
+#     file that needed a human to sort out (e.g. an unrecognized composer
+#     name) would get permanently misremembered as "already handled": if
+#     you fixed the actual cause and dropped the identical file back in,
+#     it would immediately bounce to review again as a "duplicate"
+#     without ever re-running the (now-fixed) detection logic. So only a
+#     genuinely completed move adds a hash here; a needs-review outcome
+#     never does, and always gets a fresh evaluation on retry.
+#
+# This also means the ledger never expires and is keyed on content hash
+# alone, so it matches any *future* file with identical content too — not
+# just a replayed event for the same in-flight move.
 LEDGER_PATH = os.path.join(LOG_DIR, "dropbox_processed.txt")
 
 
@@ -170,21 +184,17 @@ class DropboxHandler(FileSystemEventHandler):
         meta = parse_filename(proposed) if proposed else None
 
         if file_hash in self.ledger:
-            # Content-identical to something this processor has already
-            # filed or sent to review at some point in the past. This
-            # used to just `return` here — leaving the file sitting
-            # untouched in DROPBOX_DIR forever, since no other code path
-            # ever revisits a file that's still living in the watched
-            # folder. The ledger's job is to avoid re-inserting the same
-            # content into the DB, not to silently swallow a file that
-            # still needs a home — so route it to review instead, same
+            # Content-identical to something that was already *successfully
+            # filed* into the library before (see _file_it()'s success path
+            # below — that's the only place that adds to this ledger now).
+            # Route it to review rather than silently swallowing it, same
             # as every other "not straightforwardly filed" case. Not
             # re-added to the ledger here since it's already in it.
             log.info(f"Duplicate content (hash match) — routing to review: {original_name}")
             self._send_to_review(
                 src_path, original_name, proposed, meta,
-                reason="duplicate: identical content already processed once before "
-                       "— check whether it's already in the library, or this is an "
+                reason="duplicate: identical content already filed in the library "
+                       "before — check whether it's already there, or this is an "
                        "intentional re-add (e.g. after being removed)",
             )
             return
@@ -192,6 +202,17 @@ class DropboxHandler(FileSystemEventHandler):
         if _is_confident(proposed, meta):
             self._file_it(src_path, original_name, proposed, meta, file_hash)
         else:
+            # Deliberately NOT added to the ledger here (unlike a
+            # successful file below). This is the "needs a human to sort
+            # it out" outcome, not "already handled" — the file hasn't
+            # actually reached the library yet. Ledgering it anyway used
+            # to mean that fixing whatever caused the review (a filename
+            # tweak, a naming.py vocabulary gap — exactly what happened
+            # with the very first "L Pierce" file) and dropping the same
+            # content in again would immediately get bounced right back
+            # to review as a "duplicate", without ever re-running the
+            # (now-fixed) detection logic. A retry should always get a
+            # clean re-evaluation.
             if proposed is None:
                 reason = "could not parse filename"
             elif meta["warnings"]:
@@ -199,8 +220,6 @@ class DropboxHandler(FileSystemEventHandler):
             else:
                 reason = "no usable title/composer detected"
             self._send_to_review(src_path, original_name, proposed, meta, reason)
-            self.ledger.add(file_hash)
-            _record_ledger(file_hash)
 
     def _file_it(self, src_path, original_name, proposed, meta, file_hash):
         dest_dir = _dest_subdir(meta)
@@ -211,16 +230,22 @@ class DropboxHandler(FileSystemEventHandler):
             log.warning(
                 f"Destination already exists, sending to review instead: {proposed}"
             )
+            # Not ledgered — same reasoning as the low-confidence branch
+            # in _handle(): this file never actually made it into the
+            # library, so a retry (e.g. after the name collision is
+            # resolved) should be re-evaluated fresh, not bounced as a
+            # "duplicate" of itself.
             self._send_to_review(
                 src_path, original_name, proposed, meta,
                 reason="destination filename collision",
             )
-            self.ledger.add(file_hash)
-            _record_ledger(file_hash)
             return
 
         shutil.move(src_path, dest_path)
         log.info(f"FILED: {original_name} -> {dest_path}")
+        # The only place that adds to the ledger — this file has actually
+        # landed in the library, so a future identical-content file really
+        # would be a duplicate.
         self.ledger.add(file_hash)
         _record_ledger(file_hash)
 

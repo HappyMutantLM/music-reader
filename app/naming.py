@@ -36,7 +36,11 @@ COMPOSERS = {
     # Popular
     "billjoel", "billyjoel", "loureed", "queen", "joplin", "bowie",
     "comeau",
-    # Multi-word (initial + surname) — see comment above
+    # Contemporary/local
+    "pierce",
+    # Multi-word (initial + surname), for when a scan happens to credit
+    # the initial too — e.g. "L Pierce" or "Pierce L". Bare "pierce" above
+    # already covers the common case of the surname alone.
     "lpierce", "piercel",
 }
 
