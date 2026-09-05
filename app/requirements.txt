@@ -1,11 +1,12 @@
 fastapi
 uvicorn[standard]
 pymupdf
-# pillow, aiofiles: still unused by the backend — routers/pages.py
-# renders straight from PyMuPDF (fitz.csGRAY) with no PIL step, and the
-# page-image cache (CACHE_DIR) is plain synchronous file I/O. Kept in
-# case a thumbnail feature or async file serving comes up later; drop
-# both if that never materializes.
+# pillow: used by routers/pages.py to crop each rendered page to its
+# actual printed content before fitting it to the panel (see
+# CONTENT_WHITE_THRESHOLD/_render_page_png). Do not remove.
+# aiofiles: still unused — the page-image cache (CACHE_DIR) is plain
+# synchronous file I/O. Kept in case async file serving comes up later;
+# drop if that never materializes.
 pillow
 aiofiles
 # sqlite-utils: currently unused — database.py talks to sqlite3
