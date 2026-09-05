@@ -25,3 +25,6 @@ venv/
 # Editor
 .vscode/*
 !.vscode/settings.json
+
+# Local backup bundles (not part of the tracked source)
+archives/
