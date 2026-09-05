@@ -23,12 +23,6 @@ from database import get_db
 
 router = APIRouter()
 
-# Mirrors the join shape in routers/setlists.py's ITEM_JOIN_QUERY, but
-# pulls composer names and the repertoire blurb instead of file/category
-# metadata the companion has no use for. Filtered to role='composer' (not
-# arranger/editor/transcriber/orchestrator) — a printed-program-style
-# credit line shouldn't get muddled with every contributor role that
-# repertoire_composer/score_composer can carry.
 PROGRAM_ITEM_QUERY = """
     SELECT
         ss.id,
@@ -68,9 +62,6 @@ class ProgramNoteUpdate(BaseModel):
 
 @router.get("/setlists/{setlist_id}/program")
 def get_program(setlist_id: int):
-    """The whole evening in one call — the companion fetches this once at
-    startup and caches it to disk, so it keeps working if it wanders out
-    of Wi-Fi range while being passed around the room."""
     with get_db() as conn:
         setlist = conn.execute(
             "SELECT title FROM setlist WHERE id = ?", (setlist_id,)
@@ -97,17 +88,6 @@ def get_program(setlist_id: int):
 
 @router.put("/setlist-items/{setlist_score_id}/program-note")
 def set_program_note(setlist_score_id: int, body: ProgramNoteUpdate):
-    """Keyed on setlist_score_id (the same id GET /setlists/{id}/program
-    shows for each item) rather than a raw repertoire_id, so the workflow
-    is: look at a program, pick the item you want to annotate, use its id
-    directly — no separate repertoire-id lookup needed. Resolves to
-    repertoire under the hood since that's where the note actually lives
-    (see 005_companion_program_notes.sql).
-
-    No other endpoint writes to repertoire yet (routers/scores.py is
-    read-only) — this is the only way to attach a companion blurb to a
-    piece today, short of editing the db directly. See companion_tool.py
-    at the repo root for a command-line wrapper around this."""
     with get_db() as conn:
         row = conn.execute(
             """
@@ -128,8 +108,15 @@ def set_program_note(setlist_score_id: int, body: ProgramNoteUpdate):
             )
         repertoire_id = row["repertoire_id"]
 
+        # COALESCE preserves existing fields when only updating specific attributes
         conn.execute(
-            "UPDATE repertoire SET blurb = ?, program_note = ?, note_source = ? WHERE id = ?",
+            """
+            UPDATE repertoire SET 
+                blurb = COALESCE(?, blurb),
+                program_note = COALESCE(?, program_note),
+                note_source = COALESCE(?, note_source)
+            WHERE id = ?
+            """,
             (body.blurb, body.program_note, body.note_source, repertoire_id),
         )
         updated = conn.execute(
@@ -150,10 +137,6 @@ def get_now_playing():
 
 @router.post("/now-playing", response_model=NowPlaying)
 def set_now_playing(body: NowPlaying):
-    """Not called by the companion device itself — this is for whatever
-    ends up triggering a setlist advance on the performer's side (a
-    footswitch action, or the main reader's own next-piece event). Not
-    wired up to anything yet; the companion only reads this endpoint."""
     with get_db() as conn:
         if body.setlist_score_id is not None:
             exists = conn.execute(

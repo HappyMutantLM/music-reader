@@ -1,23 +1,3 @@
-"""
-Entry point for the companion e-ink display. Ties together: initial
-program fetch, the e-paper display, the three buttons, the NeoPixel
-indicators, and a background thread that polls for the "now playing"
-badge.
-
-    python main.py                    # loads config.SETLIST_ID
-    python main.py --setlist-id 3     # overrides it for this run
-
-Threading model, kept deliberately simple:
-  - Button presses (gpiozero callbacks) only ever mutate AppState and
-    flash an LED. They never touch the display directly.
-  - One background thread polls now-playing and mutates AppState.
-  - The main loop is the only thing that ever calls display.push() — so
-    there's never a risk of two threads fighting over the e-paper driver.
-
-Not hardware-confirmed — see display.py and leds.py for the specific
-unknowns (partial refresh, RGBW call signature).
-"""
-
 import argparse
 import logging
 import threading
@@ -35,8 +15,8 @@ log = logging.getLogger("companion.main")
 
 def now_playing_poll_loop(app_state, stop_event):
     while not stop_event.is_set():
-        score_id = api_client.get_now_playing()
-        if score_id is not None:
+        success, score_id = api_client.get_now_playing()
+        if success:
             app_state.set_now_playing(score_id)
         stop_event.wait(config.NOW_PLAYING_POLL_SECONDS)
 
@@ -93,11 +73,13 @@ def main():
     )
     poll_thread.start()
 
-    display.push(epd, display.render(app_state))  # initial draw
+    display.push(epd, display.render(app_state))
 
     try:
         while True:
             if app_state.take_dirty():
+                # Re-apply idle to all buttons (clearing any green flashes)
+                leds.idle_all(strip)
                 leds.set_now_playing_indicator(
                     strip,
                     app_state.current_item is not None

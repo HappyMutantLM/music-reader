@@ -1,10 +1,6 @@
 """Thin HTTP client for the FastAPI backend's companion endpoints
 (routers/companion.py). Mirrors pi_client/api_client.py's retry/backoff
-approach for consistency, with one difference: fetch_program() falls back
-to a local disk cache on failure instead of raising, and get_now_playing()
-treats any failure as "no change" rather than an error — a guest browsing
-the cached program shouldn't see an error screen just because the poll for
-the now-playing badge missed a beat.
+approach for consistency.
 """
 import json
 import logging
@@ -17,11 +13,8 @@ import config
 
 log = logging.getLogger("companion.api_client")
 
-# Same rationale as pi_client/api_client.py: transient connection failures
-# (NAS asleep, Wi-Fi drop) are worth a quick retry; non-200 responses are
-# an application-level answer a retry won't change.
 RETRY_ATTEMPTS = 3
-RETRY_BACKOFF_BASE = 0.5  # seconds; doubles each retry: 0.5, 1.0
+RETRY_BACKOFF_BASE = 0.5
 
 
 class ApiError(Exception):
@@ -44,9 +37,6 @@ def _get(path: str):
 
 
 def fetch_program():
-    """The whole evening's program. Falls back to the last cached copy on
-    disk if the NAS isn't reachable — connect to Wi-Fi at least once
-    before an event so a cache actually exists to fall back to."""
     try:
         resp = _get(f"/setlists/{config.SETLIST_ID}/program")
         if resp.status_code != 200:
@@ -67,27 +57,24 @@ def fetch_program():
         ) from exc
 
 
-def get_now_playing():
-    """Returns the current setlist_score_id, or None if nothing is live or
-    the request failed. A failure here is never fatal — callers should
-    treat it as 'no change', not a crash."""
+def get_now_playing() -> tuple[bool, int | None]:
+    """Returns (success, setlist_score_id).
+    On network failure, returns (False, None) so caller leaves badge as-is.
+    On successful 200, returns (True, id_or_none) so clear commands succeed."""
     try:
         resp = _get("/now-playing")
         if resp.status_code != 200:
             log.debug("now-playing poll got %s — leaving badge as-is", resp.status_code)
-            return None
-        return resp.json().get("setlist_score_id")
+            return False, None
+        return True, resp.json().get("setlist_score_id")
     except ApiError as exc:
         log.debug("now-playing poll failed (%s) — leaving badge as-is", exc)
-        return None
+        return False, None
 
 
 def _save_cache(program):
     try:
         os.makedirs(os.path.dirname(config.CACHE_PATH) or ".", exist_ok=True)
-        # Temp file + os.replace, same reasoning as pi_client/state.py:
-        # atomic on the same filesystem, so a power cycle mid-write never
-        # leaves a half-written, unparseable cache behind.
         tmp_path = config.CACHE_PATH + ".tmp"
         with open(tmp_path, "w") as f:
             json.dump(program, f)
