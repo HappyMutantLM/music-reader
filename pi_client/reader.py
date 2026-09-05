@@ -152,13 +152,34 @@ def main():
         if not items:
             raise SystemExit(f"Setlist {setlist_id} ('{setlist['title']}') has no items yet.")
 
-        item_index = saved.get("item_index") or 0
-        if not (0 <= item_index < len(items)):
-            item_index = 0
+        # Only trust the saved item_index/page_number when we're resuming
+        # this *same* setlist with no explicit flags on the command line.
+        # An explicit --setlist-id (first time opening it, or switching
+        # from a different setlist/score) means "start at the top" —
+        # without this check, a stale page_number left over from an
+        # unrelated previous session (e.g. page 1) could still fall
+        # inside this item's whole-score range even though the excerpt
+        # starts at page 88, so next_page() would walk every page from
+        # there up to page_end instead of opening straight on the
+        # excerpt. That's the "plays the whole file" bug.
+        resuming_same_setlist = (
+            args.setlist_id is None and saved.get("setlist_id") == setlist_id
+        )
 
-        page_number = args.page if args.page is not None else saved.get("page_number")
-        if page_number is None:
-            page_number, _ = Reader.bounds(items[item_index])
+        if resuming_same_setlist:
+            item_index = saved.get("item_index") or 0
+            if not (0 <= item_index < len(items)):
+                item_index = 0
+            start, end = Reader.bounds(items[item_index])
+            page_number = args.page if args.page is not None else saved.get("page_number")
+            # Defensive: also re-clamp into bounds in case the excerpt
+            # was edited (in the app) since this state was last saved.
+            if page_number is None or not (start <= page_number <= end):
+                page_number = start
+        else:
+            item_index = 0
+            start, _ = Reader.bounds(items[item_index])
+            page_number = args.page if args.page is not None else start
 
         Reader(items, item_index, page_number, setlist_id=setlist_id).run()
         return
@@ -170,7 +191,17 @@ def main():
             "GET /setlists/ on the backend lists ids)."
         )
 
-    page_number = args.page if args.page is not None else (saved.get("page_number") or 1)
+    # Same "explicit flag starts fresh" logic as setlist mode above —
+    # a stale saved page_number from a different score shouldn't carry
+    # over when --score-id explicitly opens a (possibly different) one.
+    resuming_same_score = args.score_id is None and saved.get("score_id") == score_id
+    if args.page is not None:
+        page_number = args.page
+    elif resuming_same_score:
+        page_number = saved.get("page_number") or 1
+    else:
+        page_number = 1
+
     Reader(_single_score_items(score_id), 0, page_number).run()
 
 
