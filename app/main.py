@@ -35,10 +35,13 @@ async def startup():
     watcher_thread.start()
  
  
-from routers import scores, pages, setlists  # noqa: E402
+from routers import scores, pages, setlists, companion  # noqa: E402
 
 app.include_router(health.router, tags=["health"])
 app.include_router(ingest.router, prefix="/ingest", tags=["ingest"])
 app.include_router(scores.router, prefix="/scores", tags=["scores"])
 app.include_router(pages.router, prefix="/page", tags=["pages"])
 app.include_router(setlists.router, prefix="/setlists", tags=["setlists"])
+# No prefix — companion.py's own routes already spell out /setlists/{id}/program
+# and /now-playing in full, for the companion e-ink device.
+app.include_router(companion.router, tags=["companion"])

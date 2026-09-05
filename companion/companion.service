@@ -1,0 +1,15 @@
+[Unit]
+Description=Hausmusik companion program display
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Runs as root — required for rpi_ws281x's PWM/DMA access to GPIO18.
+# If you'd rather not run as root, look into rpi_ws281x's setcap notes.
+ExecStart=/usr/bin/python3 /home/pi/sheet_music/companion/main.py
+WorkingDirectory=/home/pi/sheet_music/companion
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

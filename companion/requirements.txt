@@ -1,0 +1,5 @@
+requests
+gpiozero
+rpi_ws281x
+Pillow
+# waveshare_epd (4.2" driver) isn't on PyPI — install separately, see README.md
