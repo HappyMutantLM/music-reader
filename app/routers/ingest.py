@@ -1,7 +1,7 @@
 import os
 
 from fastapi import APIRouter, HTTPException
-from ingest_core import ingest_all, ingest_file
+from ingest_core import ingest_all, ingest_file, check_library_health
 
 router = APIRouter()
 
@@ -27,3 +27,12 @@ def run_ingest_file(filename: str):
     if os.path.basename(filename) != filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
     return ingest_file(filename)
+
+@router.get("/health")
+def run_library_health_check():
+    """Cross-check every ingested score against what's actually sitting on
+    disk under PDF_DIR. Run this before a performance, not after a 404
+    shows up on the reader mid-set — see ingest_core.check_library_health()
+    for what counts as a mismatch."""
+    return check_library_health()
+

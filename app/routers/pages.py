@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Response
 from PIL import Image
 
 from database import get_db
-from ingest_core import PDF_DIR
+from ingest_core import PDF_DIR, find_pdf_path
 
 CACHE_DIR = os.getenv("CACHE_DIR", "/cache")
 
@@ -50,26 +50,6 @@ CONTENT_DETECT_SCALE = 4.0
 CONTENT_WHITE_THRESHOLD = int(os.getenv("CONTENT_WHITE_THRESHOLD", "250"))
 
 router = APIRouter()
-
-
-def _find_pdf_path(filename: str) -> str | None:
-    """Locate a score's PDF on disk.
-
-    score.filename is stored as a bare basename with no path column, but
-    PDF_DIR is scanned recursively at ingest time (watcher.py,
-    ingest_core.ingest_all) — a file can live in a subfolder like
-    Repertoire/Bach/. Try the flat PDF_DIR/filename path first (the
-    common case), then fall back to walking PDF_DIR for a match.
-    """
-    flat_path = os.path.join(PDF_DIR, filename)
-    if os.path.exists(flat_path):
-        return flat_path
-
-    for root, _dirs, filenames in os.walk(PDF_DIR):
-        if filename in filenames:
-            return os.path.join(root, filename)
-
-    return None
 
 
 def _render_page_png(pdf_path: str, page_number: int) -> bytes:
@@ -156,7 +136,7 @@ def get_page(score_id: int, page_number: int):
         with open(cache_path, "rb") as f:
             return Response(content=f.read(), media_type="image/png")
 
-    pdf_path = _find_pdf_path(filename)
+    pdf_path = find_pdf_path(filename)
     if not pdf_path:
         raise HTTPException(
             status_code=404, detail=f"PDF file missing on disk: {filename}"

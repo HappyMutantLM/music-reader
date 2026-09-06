@@ -303,3 +303,65 @@ def ingest_all() -> list:
                 results.append(result)
                 print(f"[ingest] {result['status']}: {filename}")
     return results
+
+# ─── library health check ──────────────────────────────────────────────────
+
+def find_pdf_path(filename: str) -> str | None:
+    """Locate a score's PDF on disk.
+
+    score.filename is stored as a bare basename with no path column, but
+    PDF_DIR is scanned recursively at ingest time (watcher.py,
+    ingest_all() above) — a file can live in a subfolder like
+    Repertoire/Bach/. Try the flat PDF_DIR/filename path first (the
+    common case), then fall back to walking PDF_DIR for a match.
+
+    Shared by routers/pages.py (page rendering) and
+    check_library_health() below — one lookup, so the two can never
+    silently drift into disagreeing about whether a file "exists".
+    """
+    flat_path = os.path.join(PDF_DIR, filename)
+    if os.path.exists(flat_path):
+        return flat_path
+
+    for root, _dirs, filenames in os.walk(PDF_DIR):
+        if filename in filenames:
+            return os.path.join(root, filename)
+
+    return None
+
+
+def check_library_health() -> dict:
+    """Cross-check every score.filename in the database against what's
+    actually sitting under PDF_DIR.
+
+    Catches the failure mode that took down the Bach Arioso piece
+    mid-setlist: a score row whose filename doesn't resolve to any real
+    file (renamed/moved outside the ingest pipeline, entered before a
+    naming fix, disk cleanup that missed the db, etc.) — surfaced here so
+    it's a pre-performance check instead of a 404 on the reader.
+    """
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT s.id, s.filename, s.category, s.instrument,
+                   r.title AS repertoire_title
+            FROM score s
+            LEFT JOIN repertoire r ON s.repertoire_id = r.id
+            ORDER BY s.id
+        """).fetchall()
+
+    missing = []
+    for row in rows:
+        if find_pdf_path(row["filename"]) is None:
+            missing.append({
+                "score_id": row["id"],
+                "filename": row["filename"],
+                "category": row["category"],
+                "instrument": row["instrument"],
+                "repertoire_title": row["repertoire_title"],
+            })
+
+    return {
+        "total_scores": len(rows),
+        "missing_count": len(missing),
+        "missing": missing,
+    }
