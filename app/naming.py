@@ -3,6 +3,7 @@ naming.py — shared composer/category/instrument vocabulary and detection logic
 """
 
 import re
+import unicodedata
 
 # ── Known composers ────────────────────────────────────────────────────────
 COMPOSERS = {
@@ -345,6 +346,28 @@ BWV_RE      = re.compile(r"bwv\s*(\d+)", re.IGNORECASE)
 KV_RE       = re.compile(r"k\.?v?\.?\s*(\d+)", re.IGNORECASE)
 
 
+# Characters unicodedata's NFKD decomposition doesn't split into a base
+# letter + combining accent (so a plain "strip combining marks" pass alone
+# would leave them untouched).
+_ACCENT_TRANSLATE = str.maketrans({
+    "ø": "o", "Ø": "O", "ł": "l", "Ł": "L", "đ": "d", "Đ": "D",
+    "ß": "ss", "æ": "ae", "Æ": "AE", "œ": "oe", "Œ": "OE",
+})
+
+
+def normalize_composer(s: str) -> str:
+    """Lowercase + strip accents/diacritics + drop non-letters, so composer
+    matching is diacritic-insensitive. COMPOSERS stores plain-ASCII tokens
+    (e.g. "albeniz", "bartok"), but real scanned filenames keep the accents
+    printed on the score ("Albéniz", "Bartók", "Janáček") — without this,
+    detect_composer()/is_known_composer() would never match them."""
+    s = s.translate(_ACCENT_TRANSLATE)
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = re.sub(r"[^A-Za-z]", "", s)
+    return s.lower()
+
+
 def clean(s: str) -> str:
     s = re.sub(r"[^\w\s-]", "", s)
     s = re.sub(r"\s+", " ", s).strip()
@@ -386,7 +409,7 @@ def detect_composer(parts: list) -> tuple:
     for window in range(max_window, 0, -1):
         for i in range(len(parts) - window + 1):
             candidate = parts[i:i + window]
-            glued = "".join(candidate).lower()
+            glued = normalize_composer("".join(candidate))
             if glued in COMPOSERS:
                 composer = to_camel(" ".join(candidate))
                 remaining = parts[:i] + parts[i + window:]
@@ -413,7 +436,7 @@ def extract_pattern(text: str, pattern: re.Pattern, fmt: str) -> tuple:
 def is_known_composer(name: str) -> bool:
     if not name:
         return False
-    return name.lower() in COMPOSERS
+    return normalize_composer(name) in COMPOSERS
 
 
 def is_known_instrument(name: str) -> bool:
