@@ -1,0 +1,8 @@
+# Create persistent host volumes
+mkdir -p /volume1/docker/music-reader/{db,cache,logs}
+
+# Switch to the project directory
+cd /volume1/docker/music-reader
+
+# Launch both the API and dropbox worker
+sudo docker compose up -d --build

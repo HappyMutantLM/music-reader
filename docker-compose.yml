@@ -1,59 +1,53 @@
+version: "3.8"
+
 services:
-  music-server:
-    image: python:3.12-slim
-    container_name: music-server
+  # ── FastAPI Backend, E-ink Renderer + Library Watcher ────────
+  music-reader-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: music-reader-api
     restart: unless-stopped
     ports:
-      - "8000:8000"          # FastAPI — change left side if 8000 is taken
-    volumes:
-      - /volume1/docker/music-server/app:/app
-      - /volume1/docker/music-server/db:/db
-      - /volume1/docker/music-server/pdf:/pdf
-      - /volume1/docker/music-server/cache:/cache
-      - /volume1/docker/music-server/logs:/logs
+      - "8000:8000"
     environment:
-      - PDF_DIR=/pdf
-      # CACHE_DIR: rendered page PNGs (routers/pages.py), keyed by
-      # {score_id}/{page_number}.png — avoids re-rendering with PyMuPDF
-      # on every pedal tap.
-      - CACHE_DIR=/cache
       - DB_PATH=/db/music.db
+      - PDF_DIR=/pdf
+      - CACHE_DIR=/cache
       - LOG_DIR=/logs
-      - ALLOWED_ORIGINS=http://localhost:5173,http://memoryalpha:8000
-      # Portrait shape (825x1200), not the panel's raw 1200x825 landscape
-      # spec — the enclosure mounts the Waveshare panel rotated 90° for
-      # portrait sheet-music reading (see pi_client's PANEL_ROTATE), so
-      # pages need to be rendered to fill that rotated shape rather than
-      # a landscape box. Keep these in sync with pi_client/config.py's
-      # PANEL_WIDTH/PANEL_HEIGHT.
       - PANEL_WIDTH=825
       - PANEL_HEIGHT=1200
-    working_dir: /app
-    command: >
-      sh -c "pip install -q -r requirements.txt &&
-             uvicorn main:app --host 0.0.0.0 --port 8000"
-
-# command: >. ##### dev command (auto-restarts on file change) — swap back in if actively editing app/
-#      sh -c "pip install -q -r requirements.txt &&
-#             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
-
-  dropbox-processor:
-    image: python:3.12-slim
-    container_name: music-dropbox-processor
-    restart: unless-stopped
-    # Separate container from music-server on purpose: a crash/restart
-    # here (e.g. a malformed PDF) doesn't take down the API, and an API
-    # restart doesn't interrupt anything mid-move in the dropbox.
+      - CONTENT_WHITE_THRESHOLD=250
+      # Include your dual-screen Pi and companion reader origins here:
+      - ALLOWED_ORIGINS=http://localhost:5173,http://192.168.1.*
     volumes:
-      - /volume1/docker/music-server/app:/app
-      - /volume1/docker/music-server/pdf:/pdf
-      - /volume1/docker/music-server/dropbox:/dropbox
-      - /volume1/docker/music-server/logs:/logs
+      - /volume1/music_scores:/pdf
+      - /volume1/docker/music-reader/db:/db
+      - /volume1/docker/music-reader/cache:/cache
+      - /volume1/docker/music-reader/logs:/logs
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  # ── Dedicated Dropbox Intake & Renaming Worker ────────────────
+  music-reader-dropbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: music-reader-dropbox
+    restart: unless-stopped
+    command: ["python", "dropbox_processor.py"]
     environment:
-      - PDF_DIR=/pdf
       - DROPBOX_DIR=/dropbox
+      - PDF_DIR=/pdf
       - LOG_DIR=/logs
-    working_dir: /app
-    command: >
-      sh -c "pip install -q -r requirements.txt &&
-             python dropbox_processor.py"
+      - NEEDS_REVIEW_DIR=/dropbox/needs_review
+    volumes:
+      - /volume1/music_dropbox:/dropbox
+      - /volume1/music_scores:/pdf
+      - /volume1/docker/music-reader/logs:/logs
+    deploy:
+      resources:
+        limits:
+          memory: 512M
