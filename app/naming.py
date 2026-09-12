@@ -24,7 +24,291 @@ COMPOSERS = {
     # Contemporary/local
     "pierce",
     "lpierce", "piercel",
+
+    # ── ABRSM Piano Practical Grades 2027 & 2028 syllabus ──────────────────
+    # Auto-derived: bare surname (where it doesn't collide with an existing
+    # or another new composer's surname) plus name/surname order-pairs, same
+    # convention as "pierce"/"lpierce"/"piercel" above. Review before relying
+    # on it for non-Western name order or unusual bylines (flagged inline).
+
+    # Shared surnames -- disambiguated by initials/given name (bare surname
+    # NOT added for these; see comment on each):
+    "jcfbach", "bachjcf",          # J. C. F. Bach (bare "bach" above = J. S. Bach)
+    "lmozart", "mozartl",          # L. (Leopold) Mozart (bare "mozart" above = W. A. Mozart)
+    "cschumann", "schumannc",      # C. (Clara) Schumann (bare "schumann" above = Robert Schumann)
+    "barthoward", "howardbart",    # Bart Howard ("Fly Me to the Moon")
+    "danihoward", "howarddani",    # Dani Howard
+    "pamwedgwood", "wedgwoodpam",  # Pam Wedgwood
+    "samwedgwood", "wedgwoodsam",  # Sam Wedgwood
+
+    # Family name given first in source (kept as printed) / compound surname:
+    "chenpeixun", "peixunchen", "chen",   # Chen Peixun (family name "Chen")
+    "nihongjin", "hongjinni", "ni",        # Ni Hongjin (family name "Ni")
+    "saintgeorges", "saint-georges",       # Chevalier de Saint-Georges
+
+    "beach", "abeach", "beacha",  # A. Beach
+    "muller", "aemuller", "mullerae",  # A. E. Müller
+    "hedges", "ahedges", "hedgesa",  # A. Hedges
+    "lindeman", "alindeman", "lindemana",  # A. Lindeman
+    "reinagle", "areinagle", "reinaglea",  # A. Reinagle
+    "agay",  # Agay
+    "robertson", "ailierobertson", "robertsonailie",  # Ailie Robertson
+    "bullard", "alanbullard", "bullardalan",  # Alan Bullard
+    "haughton", "alanhaughton", "haughtonalan",  # Alan Haughton
+    "menken", "alanmenken", "menkenalan",  # Alan Menken
+    "albeniz",  # Albéniz
+    "skevington", "alexandraskevington", "skevingtonalexandra",  # Alexandra Skevington
+    "ffrench", "alexisffrench", "ffrenchalexis",  # Alexis Ffrench
+    "cook", "aliciaaugellocook", "cookaliciaaugello",  # Alicia Augello Cook
+    "savanenkovaite", "alinasavanenkovaite", "savanenkovaitealina",  # Alina Savanenkovaite
+    "mathews", "alisonmathews", "mathewsalison",  # Alison Mathews
+    "pirio", "alonsomalikpirio", "pirioalonsomalik",  # Alonso Malik Pirio
+    "alwyn",  # Alwyn
+    "andree",  # Andrée
+    "bell", "angelinebell", "bellangeline",  # Angeline Bell
+    "arensky",  # Arensky
+    "arlen",  # Arlen
+    "part", "arvopart", "partarvo",  # Arvo Pärt
+    "mayerl", "bjmayerl", "mayerlbj",  # B. J. Mayerl
+    "marcello", "bmarcello", "marcellob",  # B. Marcello
+    "grondahl", "backergrondahl", "grondahlbacker",  # Backer Grøndahl
+    "balutet",  # Balutet
+    "arens", "barbaraarens", "arensbarbara",  # Barbara Arens
+    "snow", "barbarasnow", "snowbarbara",  # Barbara Snow
+    "bartok",  # Bartók
+    "crosland", "bencrosland", "croslandben",  # Ben Crosland
+    "schattel", "bertramschattel", "schattelbertram",  # Bertram Schattel
+    "joel", "joelbilly",  # Billy Joel
+    "taylor", "billytaylor", "taylorbilly",  # Billy Taylor
+    "dylan", "bobdylan", "dylanbob",  # Bob Dylan
+    "bonis",  # Bonis
+    "bridge",  # Bridge
+    "kelly", "bryankelly", "kellybryan",  # Bryan Kelly
+    "burleigh",  # Burleigh
+    "buxtehude",  # Buxtehude
+    "hartmann", "chartmann", "hartmannc",  # C. Hartmann
+    "petzold", "cpetzold", "petzoldc",  # C. Petzold
+    "rego", "cairosrego", "regocairos",  # Cairos-Rego
+    "vine", "carlvine", "vinecarl",  # Carl Vine
+    "klose", "carolklose", "klosecarol",  # Carol Klose
+    "calvache", "carolinacalvache", "calvachecarolina",  # Carolina Calvache
+    "carse",  # Carse
+    "casella",  # Casella
+    "rollin", "catherinerollin", "rollincatherine",  # Catherine Rollin
+    "coles", "cecilcoles", "colescecil",  # Cecil Coles
+    "chaminade",  # Chaminade
+    "stier", "charlesstier", "stiercharles",  # Charles Stier
+    "tan", "cheehwatan", "tancheehwa",  # Chee-Hwa Tan
+    "donkin", "christinedonkin", "donkinchristine",  # Christine Donkin
+    "norton", "christophernorton", "nortonchristopher",  # Christopher Norton
+    "cimarosa",  # Cimarosa
+    "clementi",  # Clementi
+    "scarlatti", "dscarlatti", "scarlattid",  # D. Scarlatti
+    "fournier", "daniellefournier", "fournierdanielle",  # Danielle Fournier
+    "fellows", "darrenfellows", "fellowsdarren",  # Darren Fellows
+    "joio", "dellojoio", "joiodello",  # Dello Joio
+    "alexander", "dennisalexander", "alexanderdennis",  # Dennis Alexander
+    "diabelli",  # Diabelli
+    "hidy", "dianehidy", "hidydiane",  # Diane Hidy
+    "thomson", "donaldthomson", "thomsondonald",  # Donald Thomson
+    "dring",  # Dring
+    "duncombe",  # Duncombe
+    "dvarionas",  # Dvarionas
+    "dyson",  # Dyson
+    "farrar", "efarrar", "farrare",  # E. Farrar
+    "turner", "eturner", "turnere",  # E. Turner
+    "alberga", "eleanoralberga", "albergaeleanor",  # Eleanor Alberga
+    "davidsson", "eliasdavidsson", "davidssonelias",  # Elias Davidsson
+    "wells", "elsiewells", "wellselsie",  # Elsie Wells
+    "john", "eltonjohn", "johnelton",  # Elton John
+    "estevez",  # Estévez
+    "price", "fprice", "pricef",  # F. Price
+    "farrenc",  # Farrenc
+    "ruiz", "federicoruiz", "ruizfederico",  # Federico Ruiz
+    "field",  # Field
+    "mulsant", "florentinemulsant", "mulsantflorentine",  # Florentine Mulsant
+    "fly",  # Fly
+    "faux", "francisfaux", "fauxfrancis",  # Francis Faux
+    "gade",  # Gade
+    "gambarini",  # Gambarini
+    "martin", "geraldmartin", "martingerald",  # Gerald Martin
+    "gillock",  # Gillock
+    "ginastera",  # Ginastera
+    "gliere",  # Glière
+    "goedicke",  # Goedicke
+    "gonzaga",  # Gonzaga
+    "granados",  # Granados
+    "grechaninov",  # Grechaninov
+    "grieg",  # Grieg
+    "grovlez",  # Grovlez
+    "guastavino",  # Guastavino
+    "gurlitt",  # Gurlitt
+    "simcock", "gwilymsimcock", "simcockgwilym",  # Gwilym Simcock
+    "gorres",  # Görres
+    "hofmann", "hhofmann", "hofmannh",  # H. Hofmann
+    "haslinger",  # Haslinger
+    "hammond", "heatherhammond", "hammondheather",  # Heather Hammond
+    "madden", "helenmadden", "maddenhelen",  # Helen Madden
+    "hensel",  # Hensel
+    "hook",  # Hook
+    "burgmuller", "jffburgmuller", "burgmullerjff",  # J. F. F. Burgmüller
+    "fiocco", "jhfiocco", "fioccojh",  # J. H. Fiocco
+    "krebs", "jlkrebs", "krebsjl",  # J. L. Krebs
+    "last", "jmlast", "lastjm",  # J. M. Last
+    "hummel", "jnhummel", "hummeljn",  # J. N. Hummel
+    "metelka", "jakubmetelka", "metelkajakub",  # Jakub Metelka
+    "welburn", "jameswelburn", "welburnjames",  # James Welburn
+    "sebba", "janesebba", "sebbajane",  # Jane Sebba
+    "sifford", "jasonsifford", "siffordjason",  # Jason Sifford
+    "bowman", "jenniferbowman", "bowmanjennifer",  # Jennifer Bowman
+    "jensen",  # Jensen
+    "blake", "jessieblake", "blakejessie",  # Jessie Blake
+    "jianer",  # Jian'er
+    "kotchie", "jocelynekotchie", "kotchiejocelyne",  # Jocelyn E. Kotchie
+    "hisaishi", "joehisaishi", "hisaishijoe",  # Joe Hisaishi
+    "rowcroft", "johnrowcroft", "rowcroftjohn",  # John Rowcroft
+    "scofield", "johnscofield", "scofieldjohn",  # John Scofield
+    "williams", "johnwilliams", "williamsjohn",  # John Williams
+    "mitchell", "jonimitchell", "mitchelljoni",  # Joni Mitchell
+    "hague", "julieknerrhague", "haguejulieknerr",  # Julie Knerr Hague
+    "armstrong", "junearmstrong", "armstrongjune",  # June Armstrong
+    "parker", "kparker", "parkerk",  # K. Parker
+    "kabalevsky",  # Kabalevsky
+    "marshall", "karenmarshall", "marshallkaren",  # Karen Marshall
+    "tanaka", "karentanaka", "tanakakaren",  # Karen Tanaka
+    "feenstra", "kathleenfeenstra", "feenstrakathleen",  # Kathleen Feenstra
+    "kern",  # Kern
+    "khachaturian",  # Khachaturian
+    "paine", "knowlespaine", "paineknowles",  # Knowles Paine
+    "nystedt", "knutnystedt", "nystedtknut",  # Knut Nystedt
+    "kuhlau",  # Kuhlau
+    "bernstein", "lbernstein", "bernsteinl",  # L. Bernstein
+    "kohler", "lkohler", "kohlerl",  # L. Köhler
+    "laumenskiene",  # Laumenskienė
+    "lennon",  # Lennon
+    "liliuokalani",  # Lili'uokalani
+    "berwin", "lindseyberwin", "berwinlindsey",  # Lindsey Berwin
+    "liszt",  # Liszt
+    "chamberlain", "louisechamberlain", "chamberlainlouise",  # Louise Chamberlain
+    "drewett", "louisedrewett", "drewettlouise",  # Louise Drewett
+    "einaudi", "ludovicoeinaudi", "einaudiludovico",  # Ludovico Einaudi
+    "lyadov",  # Lyadov
+    "helyer", "mhelyer", "helyerm",  # M. Helyer
+    "hill", "mhill", "hillm",  # M. Hill
+    "ciurlionis", "mkciurlionis", "ciurlionismk",  # M. K. Čiurlionis
+    "mageau",  # Mageau
+    "maikapar",  # Maikapar
+    "corley", "mariathompsoncorley", "corleymariathompson",  # Maria Thompson Corley
+    "goddard", "markgoddard", "goddardmark",  # Mark Goddard
+    "tanner", "marktanner", "tannermark",  # Mark Tanner
+    "mier", "marthamier", "miermartha",  # Martha Mier
+    "martinez",  # Martínez
+    "massenet",  # Massenet
+    "mchugh",  # McHugh
+    "mendelssohn",  # Mendelssohn
+    "mercury",  # Mercury
+    "messiaen",  # Messiaen
+    "cornick", "mikecornick", "cornickmike",  # Mike Cornick
+    "gasieniec", "miroslawgasieniec", "gasieniecmiroslaw",  # Mirosław Gąsieniec
+    "moszkowski",  # Moszkowski
+    "sol", "nahresol", "solnahre",  # Nahre Sol
+    "ikeda", "naokoikeda", "ikedanaoko",  # Naoko Ikeda
+    "iles", "nikkiiles", "ilesnikki",  # Nikki Iles
+    "yeoh", "nikkiyeoh", "yeohnikki",  # Nikki Yeoh
+    "okoye", "nkeiruokoye", "okoyenkeiru",  # Nkeiru Okoye
+    "russell", "orussell", "russello",  # O. Russell
+    "orff",  # Orff
+    "wolf", "pewolf", "wolfpe",  # P. E. Wolf
+    "hall", "phall", "hallp",  # P. Hall
+    "pachulski",  # Pachulski
+    "paradies",  # Paradies
+    "doyle", "patrickdoyle", "doylepatrick",  # Patrick Doyle
+    "harris", "paulharris", "harrispaul",  # Paul Harris
+    "harvey", "paulharvey", "harveypaul",  # Paul Harvey
+    "peskett", "philpeskett", "peskettphil",  # Phil Peskett
+    "lane", "philiplane", "lanephilip",  # Philip Lane
+    "piazzolla",  # Piazzolla
+    "pinto",  # Pinto
+    "purcell",  # Purcell
+    "rachmaninoff",  # Rachmaninoff
+    "rameau",  # Rameau
+    "maxner", "rebekahmaxner", "maxnerrebekah",  # Rebekah Maxner
+    "reinecke",  # Reinecke
+    "rofe",  # Rofe
+    "center", "ronaldcenter", "centerronald",  # Ronald Center
+    "rubinstein",  # Rubinstein
+    "heller", "sheller", "hellers",  # S. Heller
+    "baynes", "santoshbaynes", "baynessantosh",  # Santosh Baynes
+    "bareilles", "sarabareilles", "bareillessara",  # Sara Bareilles
+    "baker", "sarahbaker", "bakersarah",  # Sarah Baker
+    "konecsni", "sarahkonecsni", "konecsnisarah",  # Sarah Konecsni
+    "watts", "sarahwatts", "wattssarah",  # Sarah Watts
+    "schytte",  # Schytte
+    "sculthorpe",  # Sculthorpe
+    "chern", "sebastianooiweichern", "chernsebastianooiwei",  # Sebastian Ooi Wei Chern
+    "seiber",  # Seiber
+    "siegmeister",  # Siegmeister
+    "skryabin",  # Skryabin
+    "spindler",  # Spindler
+    "starer",  # Starer
+    "hough", "stephenhough", "houghstephen",  # Stephen Hough
+    "schwartz", "stephenschwartz", "schwartzstephen",  # Stephen Schwartz
+    "swinstead",  # Swinstead
+    "eve", "teve", "evet",  # T. Eve (Ghanaian)
+    "kirchner", "tkirchner", "kirchnert",  # T. Kirchner
+    "niekludow", "tamaraniekludow", "niekludowtamara",  # Tamara Niekludow
+    "swift", "taylorswift", "swifttaylor",  # Taylor Swift
+    "telemann",  # Telemann
+    "richert", "teresarichert", "richertteresa",  # Teresa Richert
+    "garland", "timgarland", "garlandtim",  # Tim Garland
+    "turk",  # Türk
+    "korn", "uwekorn", "kornuwe",  # Uwe Korn
+    "capers", "valeriecapers", "capersvalerie",  # Valerie Capers
+    "proudler", "victoriaproudler", "proudlervictoria",  # Victoria Proudler
+    "villoldo",  # Villoldo
+    "neugasimov", "vitalijneugasimov", "neugasimovvitalij",  # Vitalij Neugasimov
+    "carroll", "wcarroll", "carrollw",  # W. Carroll
+    "weber",  # Weber
+    "withers",  # Withers
+    "bowen", "ybowen", "boweny",  # Y. Bowen
+    "yamada",  # Yamada
+    "dixon", "zoedixon", "dixonzoe",  # Zoe Dixon
 }
+
+# --- excluded from COMPOSERS (see naming.py comment block) ---
+# Traditional/folk (not personal composer names):
+#   African American Spiritual
+#   Trad.
+#   Trad. Chinese
+#   Trad. Chinese (Jiangsu)
+#   Trad. Irish
+#   Trad. Jamaican
+#   Trad. Japanese
+#   Trad. Korean
+#   Trad. Malay
+#   Trad. Moravian
+#   Trad. Namibian
+#   Trad. Scottish
+# Collaborative pop/songwriting credits (pick a representative name per
+# song once you know how you'll file it -- not auto-added):
+#   Adele Adkins & Greg Kurstin
+#   Benny Andersson, Björn Ulvaeus & Anderson
+#   Billie Eilish & Finneas O'Connell
+#   Ed Sheeran, Samuel Roman, Johnny McDaid, Taylor Swift & Fred Gibson
+#   Elton John & Tim Rice
+#   George Barnett, Joel Laslett Pott & Fred Gibson
+#   Guy Berryman, Jonny Buckland, Will Champion & Chris Martin
+#   H. Mancini & J. Mercer
+#   Hans Zimmer, Ryan Rubin & Alex Gibson
+#   Janet & Alan Bullard
+#   John Stephens & Toby Gad
+#   Justin Timberlake, Max Martin & Shellback
+#   Kristen Anderson-Lopez & Robert Lopez
+#   M. David, A. Hoffman & Livingston
+#   Melody Bober & Glori Goranson
+#   P. Hall & Paul Drayton
+#   Smokey Robinson & Ronald White
+#   Waller, Razaf & H. Brooks
 
 # ── Known instruments ───────────────────────────────────────────────────────
 INSTRUMENTS = {
@@ -47,7 +331,7 @@ CATEGORY_MAP = {cat.capitalize(): cat.capitalize() for cat in CATEGORY_PREFIXES}
 
 # ── Tokens to preserve exact casing ──────────────────────────────────────────
 PRESERVE_CASE = {
-    "js": "JS", "cpe": "CPE", "wa": "WA",
+    "js": "JS", "cpe": "CPE", "wa": "WA", "jcf": "JCF",
     "bwv": "BWV", "kv": "KV", "op": "Op",
     "vol": "Vol", "book": "Book",
     "i": "I", "ii": "II", "iii": "III", "iv": "IV",
